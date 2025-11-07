@@ -32,7 +32,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["styles.css", "offscreen.html"],
+      "resources": ["styles.css", "offscreen.html", "fonts/*"],
       "matches": ["file://*", "https://*/*", "http://*/*"]
     }
   ],

@@ -83,6 +83,39 @@ export const createBuildConfig = () => {
               }
               console.log('📄 Copied JavaScript libraries');
               
+              // 6. Copy and fix font paths in styles.css (includes KaTeX CSS import)
+              const stylesCssSource = 'dist/styles.css'; // This will be processed by esbuild first
+              
+              // Read the built styles.css and fix font paths
+              if (fs.existsSync(stylesCssSource)) {
+                let stylesContent = fs.readFileSync(stylesCssSource, 'utf8');
+                // Replace KaTeX font paths with extension resource URLs
+                stylesContent = stylesContent.replace(
+                  /url\("\.\/KaTeX_([^"]+)"\)/g, 
+                  'url("chrome-extension://__MSG_@@extension_id__/fonts/KaTeX_$1")'
+                );
+                fs.writeFileSync(stylesCssSource, stylesContent);
+                console.log('📄 Fixed font paths in styles.css');
+              }
+              
+              // Copy KaTeX fonts to dist/fonts/
+              const katexFontsSource = 'node_modules/katex/dist/fonts';
+              const katexFontsDest = 'dist/fonts';
+              
+              if (fs.existsSync(katexFontsSource)) {
+                if (!fs.existsSync(katexFontsDest)) {
+                  fs.mkdirSync(katexFontsDest, { recursive: true });
+                }
+                const fontFiles = fs.readdirSync(katexFontsSource);
+                for (const fontFile of fontFiles) {
+                  fs.copyFileSync(
+                    path.join(katexFontsSource, fontFile), 
+                    path.join(katexFontsDest, fontFile)
+                  );
+                }
+                console.log('📄 Copied KaTeX fonts');
+              }
+              
               console.log('✅ Complete extension created in dist/');
               console.log('🎯 Ready for Chrome: chrome://extensions/ → Load unpacked → select dist/');
             } catch (error) {
