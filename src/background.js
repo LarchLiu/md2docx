@@ -21,6 +21,16 @@ async function initGlobalCacheManager() {
 // Initialize cache manager when background script loads
 initGlobalCacheManager();
 
+// Monitor offscreen document lifecycle
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name === 'offscreen') {
+    port.onDisconnect.addListener(() => {
+      // Reset state when offscreen document disconnects
+      offscreenCreated = false;
+    });
+  }
+});
+
 // Handle messages from content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'offscreenReady') {
@@ -33,6 +43,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   
   if (message.type === 'offscreenError') {
+    console.error('Offscreen error:', message.error);
     return;
   }
   
@@ -190,18 +201,14 @@ async function handleRenderingRequest(message, sendResponse) {
     // Ensure offscreen document exists
     await ensureOffscreenDocument();
     
-    // Check offscreen contexts again
-    const contexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT']
-    });
-    
-    if (contexts.length === 0) {
-      throw new Error('Offscreen document not found after creation. This may indicate a path or loading issue.');
-    }
-    
     // Send message to offscreen document
     chrome.runtime.sendMessage(message, (response) => {
       if (chrome.runtime.lastError) {
+        // Don't immediately reset on communication failure - it might be temporary
+        // Only reset if the error suggests the document is gone
+        if (chrome.runtime.lastError.message.includes('receiving end does not exist')) {
+          offscreenCreated = false;
+        }
         sendResponse({ error: `Offscreen communication failed: ${chrome.runtime.lastError.message}` });
       } else if (!response) {
         sendResponse({ error: 'No response from offscreen document. Document may have failed to load.' });
@@ -216,22 +223,14 @@ async function handleRenderingRequest(message, sendResponse) {
 }
 
 async function ensureOffscreenDocument() {
+  // If already created, return immediately
   if (offscreenCreated) {
     return;
   }
   
-  // Check if offscreen document already exists
-  const existingContexts = await chrome.runtime.getContexts({
-    contextTypes: ['OFFSCREEN_DOCUMENT']
-  });
-
-  if (existingContexts.length > 0) {
-    offscreenCreated = true;
-    return;
-  }
-  
+  // Try to create offscreen document
+  // Multiple concurrent requests might try to create, but that's OK
   try {
-    // Create new offscreen document
     const offscreenUrl = chrome.runtime.getURL('offscreen.html');
     
     await chrome.offscreen.createDocument({
@@ -239,23 +238,17 @@ async function ensureOffscreenDocument() {
       reasons: ['DOM_SCRAPING'],
       justification: 'Render Mermaid diagrams, SVG and HTML to PNG'
     });
-
+    
     offscreenCreated = true;
     
-    // Wait a bit for offscreen document to load
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    // Verify the document was created successfully
-    const verifyContexts = await chrome.runtime.getContexts({
-      contextTypes: ['OFFSCREEN_DOCUMENT']
-    });
-    
-    if (verifyContexts.length === 0) {
-      throw new Error(`Offscreen document creation verification failed. URL: ${offscreenUrl}`);
+  } catch (error) {
+    // If error is about document already existing, that's fine
+    if (error.message.includes('already exists') || error.message.includes('Only a single offscreen')) {
+      offscreenCreated = true;
+      return;
     }
     
-  } catch (error) {
-    offscreenCreated = false;
+    // For other errors, throw them
     throw new Error(`Failed to create offscreen document: ${error.message}`);
   }
 }

@@ -57,6 +57,9 @@ async function initializeMermaid() {
   }
 }
 
+// Establish connection with background script for lifecycle monitoring
+const port = chrome.runtime.connect({ name: 'offscreen' });
+
 // Initialize Mermaid when script loads
 let mermaidReady = false;
 initializeMermaid().then(success => {
