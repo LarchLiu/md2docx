@@ -470,7 +470,18 @@ class DocxExporter {
     
     // Parse and transform AST (remark-breaks needs runSync to work)
     const ast = processor.parse(markdown);
-    return processor.runSync(ast);
+    const transformed = processor.runSync(ast);
+    
+    // Collect link definitions for resolving linkReference nodes
+    this.linkDefinitions = new Map();
+    visit(transformed, 'definition', (node) => {
+      this.linkDefinitions.set(node.identifier.toLowerCase(), {
+        url: node.url,
+        title: node.title
+      });
+    });
+    
+    return transformed;
   }
 
   /**
@@ -690,6 +701,9 @@ class DocxExporter {
       case 'link':
         return await this.convertLink(node, parentStyle);
       
+      case 'linkReference':
+        return await this.convertLinkReference(node, parentStyle);
+      
       case 'image':
         return await this.convertImage(node);
       
@@ -722,7 +736,36 @@ class DocxExporter {
    */
   async convertLink(node, parentStyle) {
     const text = this.extractText(node);
-    const url = node.url || '';
+    const url = node.url || '#'; // Use '#' for empty links
+    
+    // Create hyperlink with proper styling
+    return new ExternalHyperlink({
+      children: [
+        new TextRun({
+          text: text,
+          style: 'Hyperlink',
+          color: '0366D6', // GitHub blue matching CSS
+          underline: {
+            type: 'single',
+            color: '0366D6',
+          },
+          ...parentStyle,
+        }),
+      ],
+      link: url,
+    });
+  }
+
+  /**
+   * Convert link reference node (reference-style links)
+   */
+  async convertLinkReference(node, parentStyle) {
+    const text = this.extractText(node);
+    const identifier = node.identifier.toLowerCase();
+    
+    // Look up the definition for this reference
+    const definition = this.linkDefinitions?.get(identifier);
+    const url = definition?.url || '#'; // Use '#' if definition not found
     
     // Create hyperlink with proper styling
     return new ExternalHyperlink({
