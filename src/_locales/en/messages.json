@@ -11,6 +11,10 @@
     "message": "Overview",
     "description": "Label for overview tab"
   },
+  "tab_guide": {
+    "message": "Guide",
+    "description": "Label for guide tab"
+  },
   "tab_cache": {
     "message": "Cache",
     "description": "Label for cache tab"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "Smart caching for repeat visits",
     "description": "Feature bullet"
+  },
+  "overview_version_title": {
+    "message": "Version details",
+    "description": "Heading for version information"
   },
   "overview_usage_title": {
     "message": "How to use",

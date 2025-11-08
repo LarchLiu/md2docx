@@ -11,6 +11,10 @@
     "message": "Resumen",
     "description": "Etiqueta para la pestaña de resumen"
   },
+  "tab_guide": {
+    "message": "Guía",
+    "description": "Etiqueta para la pestaña de guía"
+  },
   "tab_cache": {
     "message": "Caché",
     "description": "Etiqueta para la pestaña de caché"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "Caché inteligente para visitas repetidas",
     "description": "Elemento de la lista de funciones"
+  },
+  "overview_version_title": {
+    "message": "Detalles de la versión",
+    "description": "Encabezado para la información de versión"
   },
   "overview_usage_title": {
     "message": "Cómo usarlo",

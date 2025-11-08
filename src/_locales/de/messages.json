@@ -11,6 +11,10 @@
     "message": "Übersicht",
     "description": "Beschriftung für den Übersichtstab"
   },
+  "tab_guide": {
+    "message": "Guide",
+    "description": "Beschriftung für den Guide-Tab"
+  },
   "tab_cache": {
     "message": "Cache",
     "description": "Beschriftung für den Cache-Tab"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "Intelligenter Cache für wiederkehrende Besuche",
     "description": "Funktionsliste"
+  },
+  "overview_version_title": {
+    "message": "Versiondetails",
+    "description": "Überschrift für Versionsinformationen"
   },
   "overview_usage_title": {
     "message": "So geht's",

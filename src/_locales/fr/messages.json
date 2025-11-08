@@ -11,6 +11,10 @@
     "message": "Aperçu",
     "description": "Libellé pour l'onglet aperçu"
   },
+  "tab_guide": {
+    "message": "Guide",
+    "description": "Libellé pour l'onglet guide"
+  },
   "tab_cache": {
     "message": "Cache",
     "description": "Libellé pour l'onglet cache"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "Cache intelligent pour les visites répétées",
     "description": "Élément de la liste des fonctionnalités"
+  },
+  "overview_version_title": {
+    "message": "Détails de la version",
+    "description": "Titre pour les informations de version"
   },
   "overview_usage_title": {
     "message": "Mode d'emploi",

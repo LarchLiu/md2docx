@@ -11,6 +11,10 @@
     "message": "개요",
     "description": "개요 탭 라벨"
   },
+  "tab_guide": {
+    "message": "가이드",
+    "description": "가이드 탭 라벨"
+  },
   "tab_cache": {
     "message": "캐시",
     "description": "캐시 탭 라벨"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "재방문을 위한 스마트 캐시",
     "description": "기능 목록 항목"
+  },
+  "overview_version_title": {
+    "message": "버전 정보",
+    "description": "버전 정보 제목"
   },
   "overview_usage_title": {
     "message": "사용 방법",

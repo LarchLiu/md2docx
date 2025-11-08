@@ -11,6 +11,10 @@
     "message": "Обзор",
     "description": "Метка вкладки обзора"
   },
+  "tab_guide": {
+    "message": "Руководство",
+    "description": "Метка вкладки руководства"
+  },
   "tab_cache": {
     "message": "Кэш",
     "description": "Метка вкладки кэша"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "Умный кэш для повторных посещений",
     "description": "Пункт списка функций"
+  },
+  "overview_version_title": {
+    "message": "Сведения о версии",
+    "description": "Заголовок информации о версии"
   },
   "overview_usage_title": {
     "message": "Как пользоваться",

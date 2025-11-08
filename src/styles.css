@@ -195,7 +195,7 @@ body.toc-hidden #markdown-wrapper {
 }
 
 #markdown-page {
-  max-width: 1000px;
+  max-width: 1060px;
   margin: 0 auto;
   transition: max-width 0.3s ease;
   display: none; /* Hidden until content is loaded */

@@ -11,6 +11,10 @@
     "message": "概览",
     "description": "概览标签"
   },
+  "tab_guide": {
+    "message": "使用指南",
+    "description": "指南标签"
+  },
   "tab_cache": {
     "message": "缓存管理",
     "description": "缓存标签"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "智能缓存系统",
     "description": "功能列表项"
+  },
+  "overview_version_title": {
+    "message": "版本信息",
+    "description": "版本信息标题"
   },
   "overview_usage_title": {
     "message": "使用方法：",

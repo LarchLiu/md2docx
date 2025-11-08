@@ -11,6 +11,10 @@
     "message": "概要",
     "description": "概要タブのラベル"
   },
+  "tab_guide": {
+    "message": "ガイド",
+    "description": "ガイドタブのラベル"
+  },
   "tab_cache": {
     "message": "キャッシュ",
     "description": "キャッシュタブのラベル"
@@ -54,6 +58,10 @@
   "overview_feature_cache": {
     "message": "再訪問時のスマートキャッシュ",
     "description": "機能一覧の項目"
+  },
+  "overview_version_title": {
+    "message": "バージョン情報",
+    "description": "バージョン情報の見出し"
   },
   "overview_usage_title": {
     "message": "使い方",

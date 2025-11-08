@@ -16,6 +16,17 @@
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
       color: white;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tab-wrapper {
+      height: 520px;
+      overflow-y: scroll;
+      scrollbar-gutter: stable;
+      -webkit-overflow-scrolling: touch;
+      display: flex;
+      flex-direction: column;
     }
     
     .header {
@@ -70,7 +81,6 @@
     
     .tab-content {
       padding: 20px;
-      min-height: 300px;
     }
     
     .tab-panel {
@@ -110,7 +120,7 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 10px;
-      margin-bottom: 15px;
+      margin-bottom: 10px;
     }
     
     .stat-item {
@@ -158,9 +168,23 @@
     }
     
     .cache-items {
-      max-height: 200px;
+      height: 200px;
       overflow-y: auto;
       margin-top: 10px;
+    }
+
+    .cache-items[data-empty="true"] .cache-item--empty {
+      display: block;
+    }
+
+    .cache-items[data-empty="true"] .cache-item[data-cache-item="dynamic"] {
+      display: none;
+    }
+
+    .cache-item--empty {
+      display: none;
+      font-style: italic;
+      opacity: 0.8;
     }
     
     .cache-item {
@@ -183,6 +207,28 @@
       margin-top: 3px;
       opacity: 0.7;
     }
+
+    .cache-item-meta {
+      margin-top: 3px;
+      opacity: 0.7;
+    }
+
+    .cache-item-meta:empty {
+      display: none;
+    }
+
+    .cache-actions {
+      text-align: center;
+      margin: 8px 0 14px;
+    }
+
+    .about-list p {
+      margin-bottom: 4px;
+    }
+
+    .about-list p:last-child {
+      margin-bottom: 0;
+    }
     
     .instructions {
       background: rgba(255, 255, 255, 0.15);
@@ -190,7 +236,7 @@
       border-radius: 6px;
       font-size: 12px;
       line-height: 1.6;
-      margin-top: 15px;
+      margin: 15px 0;
     }
     
     .instructions strong {
@@ -212,21 +258,38 @@
       opacity: 0.7;
       border-top: 1px solid rgba(255, 255, 255, 0.2);
     }
+
+    .cache-message {
+      margin-bottom: 10px;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-line;
+    }
+
+    .cache-message-text:empty,
+    .cache-message-details:empty {
+      display: none;
+    }
+
+    .cache-message:empty {
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <div class="header">
-    <h1 data-i18n="popup_title"><span class="icon">📝</span>Markdown Viewer</h1>
-    <div class="version" data-i18n="popup_version_label" data-version="1.0.0">Version 1.0.0</div>
-  </div>
-  
-  <div class="tabs">
-    <button class="tab active" data-tab="overview" data-i18n="tab_overview"></button>
-    <button class="tab" data-tab="cache" data-i18n="tab_cache"></button>
-    <button class="tab" data-tab="settings" data-i18n="tab_settings"></button>
-  </div>
-  
-  <div class="tab-content">
+  <div class="tab-wrapper">
+    <div class="header">
+      <h1 data-i18n="popup_title"><span class="icon">📝</span>Markdown Viewer</h1>
+      <div class="version" data-i18n="popup_version_label" data-version="1.0.0">Version 1.0.0</div>
+    </div>
+    <div class="tabs">
+      <button class="tab active" data-tab="overview" data-i18n="tab_overview"></button>
+      <button class="tab" data-tab="guide" data-i18n="tab_guide"></button>
+      <button class="tab" data-tab="cache" data-i18n="tab_cache"></button>
+      <button class="tab" data-tab="settings" data-i18n="tab_settings"></button>
+    </div>
+
+    <div class="tab-content">
     <!-- Overview tab -->
     <div class="tab-panel active" id="overview">
       <div class="info-section">
@@ -240,13 +303,25 @@
           <li data-i18n="overview_feature_cache"></li>
         </ul>
       </div>
-      
+
+      <div class="info-section">
+        <h3 data-i18n="overview_version_title"></h3>
+        <div class="about-list" style="font-size: 12px; line-height: 1.6;">
+          <p><strong data-i18n="settings_about_author_label"></strong> xicilion</p>
+          <p><strong data-i18n="settings_about_version_label"></strong> 1.0.0</p>
+          <p><strong data-i18n="settings_about_updated_label"></strong> 2025-11-09</p>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Guide tab -->
+    <div class="tab-panel" id="guide">
       <div class="instructions">
         <strong data-i18n="overview_usage_title"></strong>
         <p data-i18n="overview_usage_step1"></p>
         <p data-i18n="overview_usage_step2"></p>
       </div>
-      
+
       <div class="info-section">
         <h3 data-i18n="overview_demo_title"></h3>
         <div style="text-align: center; margin: 10px 0;">
@@ -255,7 +330,7 @@
         <div style="font-size: 11px; opacity: 0.8; text-align: center;" data-i18n="overview_demo_helper">
         </div>
       </div>
-      
+
       <div class="instructions">
         <strong data-i18n="overview_tip_title"></strong>
         <p data-i18n="overview_tip_content"></p>
@@ -264,25 +339,54 @@
     
     <!-- Cache tab -->
     <div class="tab-panel" id="cache">
-      <div class="loading" id="cache-loading" data-i18n="cache_loading"></div>
-      
-      <div id="cache-content" style="display: none;">
+      <div id="cache-content">
         <div class="cache-stats" id="cache-stats">
-          <!-- Stats will be filled via JavaScript -->
+          <div class="stat-item">
+            <div class="stat-value" id="cache-stat-item-count">--</div>
+            <div class="stat-label" data-i18n="cache_stat_item_label"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="cache-stat-size">--</div>
+            <div class="stat-label" data-i18n="cache_stat_size_label"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="cache-stat-usage">--</div>
+            <div class="stat-label" data-i18n="cache_stat_usage_label"></div>
+          </div>
+          <div class="stat-item">
+            <div class="stat-value" id="cache-stat-capacity">--</div>
+            <div class="stat-label" data-i18n="cache_stat_capacity_label"></div>
+          </div>
+        </div>
+
+        <div class="cache-message" id="cache-message" hidden>
+          <div class="cache-message-text" id="cache-message-text"></div>
+          <div class="cache-message-details" id="cache-message-details"></div>
         </div>
         
-        <div style="text-align: center; margin-bottom: 15px;">
+        <div class="cache-actions">
           <button class="btn" id="refresh-cache" data-i18n="cache_refresh"></button>
           <button class="btn danger" id="clear-cache" data-i18n="cache_clear"></button>
         </div>
         
         <div class="info-section">
           <h3 data-i18n="cache_items_title"></h3>
-          <div class="cache-items" id="cache-items">
-            <!-- Cache items rendered by JavaScript -->
+          <div class="cache-items" id="cache-items" data-empty="true">
+            <div class="cache-item cache-item--empty" data-i18n="cache_items_empty"></div>
           </div>
         </div>
       </div>
+      <template id="cache-item-template">
+        <div class="cache-item" data-cache-item="dynamic">
+          <div class="cache-item-key"></div>
+          <div class="cache-item-info">
+            <span class="cache-item-type"></span>
+            <span class="cache-item-size"></span>
+          </div>
+          <div class="cache-item-meta cache-item-created"></div>
+          <div class="cache-item-meta cache-item-accessed"></div>
+        </div>
+      </template>
     </div>
     
     <!-- Settings tab -->
@@ -314,16 +418,6 @@
         <div style="margin: 15px 0;">
           <button class="btn" id="save-settings" data-i18n="settings_save_btn"></button>
           <button class="btn" id="reset-settings" data-i18n="settings_reset_btn"></button>
-        </div>
-      </div>
-      
-      <div class="info-section">
-        <h3 data-i18n="settings_about_title"></h3>
-        <div style="font-size: 12px; line-height: 1.6;">
-          <p><strong data-i18n="settings_about_author_label"></strong> AI Assistant</p>
-          <p><strong data-i18n="settings_about_version_label"></strong> 1.0.0</p>
-          <p><strong data-i18n="settings_about_updated_label"></strong> 2025-11-07</p>
-          <p><strong data-i18n="settings_about_storage_label"></strong> IndexedDB</p>
         </div>
       </div>
     </div>

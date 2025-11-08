@@ -1161,7 +1161,7 @@ function setupToolbarButtons() {
         layoutBtn.title = layoutTitles.narrow;
       } else {
         currentLayout = 'normal';
-        pageDiv.style.maxWidth = '1000px';
+        pageDiv.style.maxWidth = '1060px';
         layoutBtn.innerHTML = layoutIcons.normal;
         layoutBtn.title = layoutTitles.normal;
       }
