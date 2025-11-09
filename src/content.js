@@ -11,7 +11,6 @@ import rehypeHighlight from 'rehype-highlight';
 import rehypeStringify from 'rehype-stringify';
 import { visit } from 'unist-util-visit';
 import ExtensionRenderer from './renderer.js';
-import ExtensionCacheManager from './cache-manager.js';
 import DocxExporter from './docx-exporter.js';
 import Localization, { DEFAULT_SETTING_LOCALE } from './localization.js';
 import { uploadInChunks, abortUpload } from './upload-manager.js';
