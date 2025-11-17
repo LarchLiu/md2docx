@@ -86,9 +86,6 @@ export class MermaidRenderer extends BaseRenderer {
     
     // Add padding to prevent text clipping
     const svgElement = container.querySelector('svg');
-    if (svgElement) {
-      this.addPaddingToSvg(svgElement);
-    }
     
     // Give layout engine time to process
     container.offsetHeight;
@@ -167,35 +164,5 @@ export class MermaidRenderer extends BaseRenderer {
       width: canvas.width,
       height: canvas.height
     };
-  }
-
-  /**
-   * Add padding to SVG element to prevent text clipping
-   * @param {SVGElement} svgElement - SVG DOM element
-   */
-  addPaddingToSvg(svgElement) {
-    try {
-      // Get current viewBox or create from width/height
-      let viewBox = svgElement.getAttribute('viewBox');
-      if (!viewBox) {
-        const width = parseFloat(svgElement.getAttribute('width') || 0);
-        const height = parseFloat(svgElement.getAttribute('height') || 0);
-        viewBox = `0 0 ${width} ${height}`;
-      }
-
-      // Parse viewBox values
-      const [x, y, width, height] = viewBox.split(' ').map(parseFloat);
-
-      // Add 5% padding on all sides
-      const paddingPercent = 0.05;
-      const paddingX = width * paddingPercent;
-      const paddingY = height * paddingPercent;
-
-      const newViewBox = `${x - paddingX} ${y - paddingY} ${width + 2 * paddingX} ${height + 2 * paddingY}`;
-      svgElement.setAttribute('viewBox', newViewBox);
-    } catch (error) {
-      // If processing fails, ignore
-      console.warn('Failed to add padding to SVG:', error);
-    }
   }
 }
