@@ -667,6 +667,7 @@ class DocxExporter {
     // Get spacing from theme
     const paragraphSpacing = this.themeStyles.default.paragraph.spacing;
     const defaultLineSpacing = paragraphSpacing.line;
+    const defaultBeforeSpacing = paragraphSpacing.before;
     const defaultAfterSpacing = paragraphSpacing.after;
 
     if (children.length === 0) {
@@ -674,6 +675,7 @@ class DocxExporter {
       return new Paragraph({
         text: '',
         spacing: {
+          before: defaultBeforeSpacing,
           after: defaultAfterSpacing,
           line: defaultLineSpacing,
         },
@@ -684,6 +686,7 @@ class DocxExporter {
     return new Paragraph({
       children: children,
       spacing: {
+        before: defaultBeforeSpacing,
         after: defaultAfterSpacing,
         line: defaultLineSpacing,
       },
