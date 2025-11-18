@@ -247,8 +247,12 @@ class DocxExporter {
       // Convert AST to docx elements
       const sections = await this.convertAstToDocx(ast);
 
-      // Create document
+      // Create document with properties
       const doc = new Document({
+        creator: 'Markdown Viewer Extension',
+        title: filename.replace(/\.docx$/i, ''),
+        description: 'Generated from Markdown',
+        lastModifiedBy: 'Markdown Viewer Extension',
         numbering: {
           config: [
             {
