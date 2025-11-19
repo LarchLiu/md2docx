@@ -278,7 +278,7 @@ async function handleContentCacheOperation(message, sendResponse) {
         break;
 
       case 'getStats':
-        const stats = await globalCacheManager.getStats();
+        const stats = await globalCacheManager.getStats(message.limit || 50);
         sendResponse({ result: stats });
         break;
 
@@ -311,7 +311,8 @@ async function handleCacheRequest(message, sendResponse) {
     }
 
     if (message.action === 'getCacheStats') {
-      const stats = await globalCacheManager.getStats();
+      const limit = message.limit || 50;
+      const stats = await globalCacheManager.getStats(limit);
       sendResponse(stats);
     } else if (message.action === 'clearCache') {
       await globalCacheManager.clear();

@@ -399,38 +399,66 @@ class ExtensionCacheManager {
 
   /**
    * Get comprehensive cache statistics from both layers
+   * Optimized to avoid loading all items into memory
    */
-  async getStats() {
+  async getStats(limit = 50) {
     await this.ensureDB();
 
     // Get memory cache stats
     const memoryStats = this._getMemoryCacheStats();
 
-    // Get IndexedDB stats
-    const transaction = this.db.transaction([this.storeName], 'readonly');
-    const store = transaction.objectStore(this.storeName);
-
     return new Promise((resolve, reject) => {
-      const request = store.getAll();
-
-      request.onsuccess = () => {
-        const items = request.result;
-        const totalSize = items.reduce((sum, item) => sum + (item.size || 0), 0);
-
+      const transaction = this.db.transaction([this.storeName], 'readonly');
+      const store = transaction.objectStore(this.storeName);
+      
+      let itemCount = 0;
+      let totalSize = 0;
+      const items = [];
+      
+      // 1. Get total count
+      const countRequest = store.count();
+      
+      countRequest.onsuccess = () => {
+        itemCount = countRequest.result;
+      };
+      
+      // 2. Calculate total size using key cursor on size index (avoids loading values)
+      const sizeIndex = store.index('size');
+      const sizeCursorRequest = sizeIndex.openKeyCursor();
+      
+      sizeCursorRequest.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor) {
+          totalSize += cursor.key; // cursor.key is the size value
+          cursor.continue();
+        }
+      };
+      
+      // 3. Get top N items by accessTime
+      const accessIndex = store.index('accessTime');
+      // 'prev' direction gives descending order (newest first)
+      const itemsCursorRequest = accessIndex.openCursor(null, 'prev');
+      
+      itemsCursorRequest.onsuccess = (event) => {
+        const cursor = event.target.result;
+        if (cursor && items.length < limit) {
+          items.push(cursor.value);
+          cursor.continue();
+        }
+      };
+      
+      transaction.oncomplete = () => {
         const stats = {
           // Memory cache stats
           memoryCache: memoryStats,
 
           // IndexedDB cache stats  
           indexedDBCache: {
-            itemCount: items.length,
+            itemCount: itemCount,
             maxItems: this.maxItems,
             totalSize: totalSize,
             totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
-            items: items
-              .sort((a, b) => b.accessTime - a.accessTime) // Sort by most recently accessed
-              .slice(0, 20) // Show top 20 items
-              .map(item => ({
+            items: items.map(item => ({
                 key: item.key?.substring(0, 32) + '...',
                 type: item.type,
                 size: item.size,
@@ -441,13 +469,13 @@ class ExtensionCacheManager {
               }))
           },
 
-          // Combined stats - avoid double counting items that exist in both caches
+          // Combined stats
           combined: {
-            totalItems: items.length, // Only count IndexedDB items as source of truth
-            totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2), // Only IndexedDB size, memory is just a copy
-            memoryHitRatio: items.length > 0 ? (memoryStats.itemCount / items.length * 100).toFixed(1) + '%' : '0%',
+            totalItems: itemCount,
+            totalSizeMB: (totalSize / (1024 * 1024)).toFixed(2),
+            memoryHitRatio: itemCount > 0 ? (memoryStats.itemCount / itemCount * 100).toFixed(1) + '%' : '0%',
             hitRate: {
-              memoryHits: 0, // Would need to track these metrics
+              memoryHits: 0,
               indexedDBHits: 0,
               misses: 0
             }
@@ -463,9 +491,9 @@ class ExtensionCacheManager {
 
         resolve(stats);
       };
-
-      request.onerror = () => {
-        reject(request.error);
+      
+      transaction.onerror = () => {
+        reject(transaction.error);
       };
     });
   }
