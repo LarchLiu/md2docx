@@ -50,20 +50,6 @@ function generateDefaultStyle(fontScheme, spacingScheme) {
   const beforeSpacing = halfSpacing + lineSpacingExtra / 2;
   const afterSpacing = Math.max(0, halfSpacing - lineSpacingExtra / 2);
   
-  console.log('[Theme-to-DOCX] Default style:', {
-    bodyFont,
-    fontSize,
-    lineHeight: fontScheme.body.lineHeight,
-    calculatedLineSpacing: lineSpacing,
-    lineSpacingExtra,
-    baseFontSizePt,
-    paragraphRatio: spacingScheme.paragraph,
-    paragraphSpacingPt,
-    halfSpacingTwips: halfSpacing,
-    beforeSpacing,
-    afterSpacing
-  });
-
   // For DOCX: get font configuration from font-config.json
   const docxFont = themeManager.getDocxFont(bodyFont);
 

@@ -1285,6 +1285,20 @@ class DocxExporter {
     const rightBorderAndPadding = 0.09;
 
     const defaultLineSpacing = this.themeStyles.default.paragraph.spacing.line;
+    // Compress line spacing for blockquote: use 1/4 of the extra spacing
+    // Formula: 240 + (defaultLineSpacing - 240) / 4
+    // Example: 180% (432) -> 120% (288), 150% (360) -> 112.5% (270)
+    const compressedLineSpacing = Math.round(240 + (defaultLineSpacing - 240) / 4);
+    
+    // Calculate inter-paragraph spacing within blockquote
+    // Use the same calculation as normal paragraphs, but compensate for compressed line spacing
+    const lineSpacingExtra = compressedLineSpacing - 240;
+    const paragraphSpacing = this.themeStyles.default.paragraph.spacing;
+    // Get the base paragraph spacing (before compensation)
+    // Reverse the compensation to get the original halfSpacing
+    const originalHalfSpacing = paragraphSpacing.before - (defaultLineSpacing - 240) / 2;
+    // Apply compensation for blockquote's compressed line spacing
+    const blockquoteInterParagraphSpacing = originalHalfSpacing + lineSpacingExtra / 2;
 
     // Build common paragraph config
     const buildParagraphConfig = (children, spacingBefore = 0, spacingAfter = 0) => ({
@@ -1292,7 +1306,7 @@ class DocxExporter {
       spacing: {
         before: spacingBefore,
         after: spacingAfter,
-        line: defaultLineSpacing,
+        line: compressedLineSpacing,
       },
       alignment: AlignmentType.LEFT,
       indent: {
@@ -1337,11 +1351,22 @@ class DocxExporter {
       if (child.type === 'paragraph') {
         const children = await this.convertInlineNodes(child.children, { color: '6A737D' });
         
-        // Only top-level blockquote (nestLevel === 0) gets spacing
-        const isFirst = (childIndex === 0) && (nestLevel === 0);
-        const isLast = (childIndex === childCount - 1) && (nestLevel === 0);
-        const spacingBefore = isFirst ? 200 : 0;  // 13px
-        const spacingAfter = isLast ? 300 : 0;    // 13px
+        // Only top-level blockquote (nestLevel === 0) gets outer spacing
+        const isFirst = (childIndex === 0);
+        const isLast = (childIndex === childCount - 1);
+        
+        // First paragraph gets outer before spacing (only at top level)
+        let spacingBefore = 0;
+        if (isFirst && nestLevel === 0) {
+          spacingBefore = 200;  // 10pt outer spacing
+        } else if (!isFirst) {
+          // Non-first paragraphs get inter-paragraph spacing to separate them
+          // Use calculated spacing that compensates for blockquote's compressed line height
+          spacingBefore = blockquoteInterParagraphSpacing;
+        }
+        
+        // Last paragraph gets outer after spacing (only at top level)
+        const spacingAfter = (isLast && nestLevel === 0) ? 300 : 0;  // 15pt
         
         paragraphs.push(new Paragraph(buildParagraphConfig(children, spacingBefore, spacingAfter)));
         childIndex++;
