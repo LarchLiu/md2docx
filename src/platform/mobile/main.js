@@ -182,6 +182,11 @@ async function handleLoadMarkdown({ content, filename, themeDataJson }) {
         }
       }
 
+      // Apply saved zoom level before rendering to avoid flicker
+      if (currentZoomLevel !== 1) {
+        container.style.zoom = currentZoomLevel;
+      }
+      
       await renderHtmlIncrementally(container, html, { batchSize: 200, yieldDelay: 0 });
       
       // Check if aborted during incremental render
@@ -369,14 +374,17 @@ window.clearCache = async () => {
   }
 };
 
+// Store current zoom level for applying after content render
+let currentZoomLevel = 1;
+
 window.setFontSize = async (size) => {
   try {
     // Use zoom like Chrome extension (size is treated as percentage base)
     // 16pt = 100%, 12pt = 75%, 24pt = 150%
-    const zoomLevel = size / 16;
+    currentZoomLevel = size / 16;
     const container = document.getElementById('markdown-content');
     if (container) {
-      container.style.zoom = zoomLevel;
+      container.style.zoom = currentZoomLevel;
     }
   } catch (error) {
     console.error('[Mobile] Failed to set font size:', error);

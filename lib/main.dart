@@ -250,6 +250,12 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
           // Send theme data to WebView (Flutter loads from assets, not WebView fetch)
           await _sendThemeData(_currentTheme);
 
+          // Apply saved font size (zoom level) before loading content
+          final savedFontSize = settingsService.fontSize;
+          await _controller.runJavaScript(
+            "if(window.setFontSize){window.setFontSize($savedFontSize);}",
+          );
+          
           // Load pending content if any
           if (_pendingContent != null) {
             await _loadMarkdownIntoWebView(_pendingContent!, _pendingFilename ?? 'document.md');
