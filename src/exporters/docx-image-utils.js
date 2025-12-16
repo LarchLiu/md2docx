@@ -179,3 +179,68 @@ export function determineImageType(contentType, url) {
   
   return imageType;
 }
+
+/**
+ * Check if URL or content type indicates an SVG image
+ * @param {string} url - Image URL
+ * @param {string} contentType - Content type (optional)
+ * @returns {boolean} True if SVG
+ */
+export function isSvgImage(url, contentType = null) {
+  if (contentType && contentType.includes('svg')) {
+    return true;
+  }
+  const lowerUrl = url.toLowerCase();
+  return lowerUrl.endsWith('.svg') || lowerUrl.includes('image/svg+xml');
+}
+
+/**
+ * Convert SVG content to PNG using renderer
+ * @param {string} svgContent - SVG content string
+ * @param {Object} renderer - Renderer instance with render() method
+ * @returns {Promise<{buffer: Uint8Array, width: number, height: number}>}
+ */
+export async function convertSvgToPng(svgContent, renderer) {
+  // Render SVG to PNG
+  const pngResult = await renderer.render('svg', svgContent, { outputFormat: 'png' });
+  
+  // Convert base64 to Uint8Array
+  const binaryString = atob(pngResult.base64);
+  const len = binaryString.length;
+  const bytes = new Uint8Array(len);
+  for (let i = 0; i < len; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  
+  return {
+    buffer: bytes,
+    width: pngResult.width,
+    height: pngResult.height
+  };
+}
+
+/**
+ * Get SVG content from URL or data URL
+ * @param {string} url - SVG URL or data URL
+ * @param {Function} fetchImageAsBuffer - Function to fetch image as buffer
+ * @returns {Promise<string>} SVG content string
+ */
+export async function getSvgContent(url, fetchImageAsBuffer) {
+  // Handle data: URLs
+  if (url.startsWith('data:image/svg+xml')) {
+    const base64Match = url.match(/^data:image\/svg\+xml;base64,(.+)$/);
+    if (base64Match) {
+      return atob(base64Match[1]);
+    }
+    // Try URL encoded format
+    const urlMatch = url.match(/^data:image\/svg\+xml[;,](.+)$/);
+    if (urlMatch) {
+      return decodeURIComponent(urlMatch[1]);
+    }
+    throw new Error('Unsupported SVG data URL format');
+  }
+  
+  // Fetch SVG file (local or remote)
+  const { buffer } = await fetchImageAsBuffer(url);
+  return new TextDecoder().decode(buffer);
+}

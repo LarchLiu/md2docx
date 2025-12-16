@@ -75,7 +75,8 @@ class DocxExporter {
       themeStyles: this.themeStyles,
       fetchImageAsBuffer: (url) => this.fetchImageAsBuffer(url),
       reportResourceProgress: () => this.reportResourceProgress(),
-      linkDefinitions: this.linkDefinitions
+      linkDefinitions: this.linkDefinitions,
+      renderer: this.renderer
     });
 
     // Create other converters

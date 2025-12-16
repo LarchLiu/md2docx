@@ -9,7 +9,10 @@ import { convertLatex2Math } from './docx-math-converter.js';
 import {
   calculateImageDimensions,
   getImageDimensions,
-  determineImageType
+  determineImageType,
+  isSvgImage,
+  convertSvgToPng,
+  getSvgContent
 } from './docx-image-utils.js';
 
 /**
@@ -19,13 +22,15 @@ import {
  * @param {Function} options.fetchImageAsBuffer - Function to fetch image as buffer
  * @param {Function} options.reportResourceProgress - Function to report progress
  * @param {Map} options.linkDefinitions - Link definitions map
+ * @param {Object} options.renderer - Renderer instance for SVG conversion
  * @returns {Object} Inline node converter
  */
 export function createInlineConverter({ 
   themeStyles, 
   fetchImageAsBuffer, 
   reportResourceProgress,
-  linkDefinitions
+  linkDefinitions,
+  renderer
 }) {
   /**
    * Convert inline nodes (text, emphasis, strong, etc.)
@@ -175,7 +180,20 @@ export function createInlineConverter({
    */
   async function convertImage(node) {
     try {
+      // Check if image is SVG (by URL)
+      if (isSvgImage(node.url)) {
+        return await convertSvgImageFromUrl(node.url, node.alt);
+      }
+
+      // Fetch image as buffer
       const { buffer, contentType } = await fetchImageAsBuffer(node.url);
+      
+      // Double-check content type to ensure it's not SVG
+      if (contentType && contentType.includes('svg')) {
+        const svgContent = new TextDecoder().decode(buffer);
+        return await convertSvgImageContent(svgContent, node.alt);
+      }
+
       const { width: originalWidth, height: originalHeight } = await getImageDimensions(buffer, contentType);
       const { width: widthPx, height: heightPx } = calculateImageDimensions(originalWidth, originalHeight);
       const imageType = determineImageType(contentType, node.url);
@@ -201,6 +219,80 @@ export function createInlineConverter({
         italics: true,
         color: 'DC2626',
         bold: true,
+      });
+    }
+  }
+
+  /**
+   * Convert SVG image from URL by fetching and converting to PNG
+   * @param {string} url - SVG image URL
+   * @param {string} alt - Alt text
+   * @returns {Promise<ImageRun|TextRun>}
+   */
+  async function convertSvgImageFromUrl(url, alt) {
+    try {
+      const svgContent = await getSvgContent(url, fetchImageAsBuffer);
+      return await convertSvgImageContent(svgContent, alt);
+    } catch (error) {
+      console.warn('Failed to load SVG image:', url, error);
+      reportResourceProgress();
+      return new TextRun({
+        text: `[SVG 图片加载失败: ${alt || url}]`,
+        italics: true,
+        color: 'DC2626',
+      });
+    }
+  }
+
+  /**
+   * Convert SVG content to PNG and create ImageRun
+   * @param {string} svgContent - SVG content string
+   * @param {string} alt - Alt text
+   * @returns {Promise<ImageRun|TextRun>}
+   */
+  async function convertSvgImageContent(svgContent, alt) {
+    if (!renderer) {
+      reportResourceProgress();
+      return new TextRun({
+        text: '[SVG 图片 - 渲染器不可用]',
+        italics: true,
+        color: '666666',
+      });
+    }
+
+    try {
+      const { buffer, width, height } = await convertSvgToPng(svgContent, renderer);
+      
+      // Calculate display size (1/4 of original PNG size)
+      const displayWidth = Math.round(width / 4);
+      const displayHeight = Math.round(height / 4);
+      
+      // Apply max-width constraint
+      const { width: constrainedWidth, height: constrainedHeight } = 
+        calculateImageDimensions(displayWidth, displayHeight);
+
+      reportResourceProgress();
+
+      return new ImageRun({
+        data: buffer,
+        transformation: {
+          width: constrainedWidth,
+          height: constrainedHeight,
+        },
+        type: 'png',
+        altText: {
+          title: alt || 'SVG Image',
+          description: alt || 'SVG image',
+          name: alt || 'svg-image',
+        },
+      });
+    } catch (error) {
+      console.warn('Failed to render SVG:', error);
+      reportResourceProgress();
+      return new TextRun({
+        text: `[SVG 渲染失败: ${error.message}]`,
+        italics: true,
+        color: 'FF0000',
       });
     }
   }
