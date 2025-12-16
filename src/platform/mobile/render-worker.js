@@ -73,7 +73,6 @@ window.addEventListener('message', async (event) => {
 
   // Handle theme config update
   if (type === MessageTypes.SET_THEME_CONFIG || type === 'SET_THEME_CONFIG') {
-    console.log('[RenderWorker] SET_THEME_CONFIG received:', message.config);
     setThemeConfig(message.config);
     sendResponse(requestId, { success: true });
     return;
@@ -81,7 +80,6 @@ window.addEventListener('message', async (event) => {
 
   // Handle render request
   if (type === MessageTypes.RENDER_DIAGRAM || type === 'RENDER_DIAGRAM') {
-    console.log('[RenderWorker] RENDER_DIAGRAM received:', message.renderType);
     try {
       const result = await handleRender({
         renderType: message.renderType,
@@ -113,7 +111,6 @@ window.addEventListener('message', (event) => {
       clearInterval(readyInterval);
       readyInterval = null;
     }
-    console.log('[RenderWorker] Ready acknowledged');
   }
 });
 
@@ -121,8 +118,6 @@ window.addEventListener('message', (event) => {
  * Initialize render worker
  */
 function initialize() {
-  console.log('[RenderWorker] Initializing...');
-  
   // Initialize render environment using shared core
   const canvas = document.getElementById('png-canvas');
   initRenderEnvironment({ canvas });
@@ -133,7 +128,6 @@ function initialize() {
   // This handles the case where parent's listener isn't set up yet
   const sendReady = () => {
     if (!readyAcknowledged) {
-      console.log('[RenderWorker] Sending RENDER_FRAME_READY');
       sendToParent({ type: 'RENDER_FRAME_READY' });
     }
   };
@@ -148,8 +142,6 @@ function initialize() {
       readyInterval = null;
     }
   }, 10000);
-
-  console.log('[RenderWorker] Ready');
 }
 
 // Initialize when DOM is ready

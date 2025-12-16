@@ -300,6 +300,11 @@ body.toc-hidden #markdown-wrapper {
   height: auto;
 }
 
+#markdown-content .diagram-svg svg {
+  width: 100%;
+  height: auto;
+}
+
 #markdown-content hr {
   height: 3px;
   padding: 0;
