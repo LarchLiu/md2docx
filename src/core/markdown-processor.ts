@@ -7,6 +7,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import remarkSuperSub from '../plugins/remark-super-sub';
+import remarkTocFilter from '../plugins/remark-toc-filter';
 import remarkRehype from 'remark-rehype';
 import rehypeSlug from 'rehype-slug';
 import rehypeKatex from 'rehype-katex';
@@ -534,7 +535,8 @@ export function createMarkdownProcessor(
     .use(remarkGfm, { singleTilde: false })
     .use(remarkBreaks)
     .use(remarkMath)
-    .use(remarkSuperSub);
+    .use(remarkSuperSub)
+    .use(remarkTocFilter);  // Filter out [toc] markers in rendered HTML
 
   // Register all plugins from plugin registry
   // Cast via unknown due to unified's complex generic constraints

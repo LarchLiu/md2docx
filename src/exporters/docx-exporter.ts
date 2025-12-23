@@ -12,6 +12,7 @@ import {
   ImageRun,
   BorderStyle,
   convertInchesToTwip,
+  TableOfContents,
   type IStylesOptions,
   type IBaseParagraphStyleOptions,
   type IDocumentDefaultsOptions,
@@ -216,6 +217,9 @@ class DocxExporter {
       const doc = new Document({
         creator: 'Markdown Viewer Extension',
         lastModifiedBy: 'Markdown Viewer Extension',
+        features: {
+          updateFields: true,  // Auto-update TOC fields when document is opened
+        },
         numbering: {
           config: [
             {
@@ -288,16 +292,32 @@ class DocxExporter {
     const transformed = processor.runSync(ast);
 
     this.linkDefinitions = new Map();
-    visit(transformed, 'definition', (node: DOCXASTNode) => {
-      if (node.identifier) {
-        this.linkDefinitions.set(node.identifier.toLowerCase(), {
-          url: node.url || '',
-          title: node.title || null
+    visit(transformed, 'definition', (node) => {
+      const defNode = node as { identifier?: string; url?: string; title?: string };
+      if (defNode.identifier) {
+        this.linkDefinitions.set(defNode.identifier.toLowerCase(), {
+          url: defNode.url || '',
+          title: defNode.title ?? null
         });
       }
     });
 
     return transformed as DOCXASTNode;
+  }
+
+  /**
+   * Check if a node is a [toc] marker
+   * Detects paragraphs containing only [toc] or [TOC]
+   */
+  private isTocMarker(node: DOCXASTNode): boolean {
+    if (node.type !== 'paragraph') return false;
+    if (!node.children || node.children.length !== 1) return false;
+    
+    const child = node.children[0];
+    if (child.type !== 'text') return false;
+    
+    const text = (child.value || '').trim();
+    return /^\[toc\]$/i.test(text);
   }
 
   private async convertAstToDocx(ast: DOCXASTNode): Promise<FileChild[]> {
@@ -308,6 +328,23 @@ class DocxExporter {
     if (!ast.children) return elements;
 
     for (const node of ast.children) {
+      // Check if this is a [toc] marker - insert TableOfContents only when detected
+      if (this.isTocMarker(node)) {
+        // Insert a table of contents at this position
+        const toc = new TableOfContents('Contents', {
+          hyperlink: true,
+          headingStyleRange: '1-6',
+        });
+        elements.push(toc);
+        // Add a spacing paragraph after TOC
+        elements.push(new Paragraph({
+          text: '',
+          spacing: { before: 240, after: 120 },
+        }));
+        lastNodeType = 'toc';
+        continue;
+      }
+
       if (node.type === 'thematicBreak' && lastNodeType === 'thematicBreak') {
         elements.push(new Paragraph({
           text: '',
