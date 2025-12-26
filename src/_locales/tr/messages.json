@@ -279,6 +279,18 @@
     "message": "Dil",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "Sistem dili",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Markdown’da yumuşak satır sonlarında satırı böl",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "Yumuşak satır sonları",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "More",
     "description": "More menu tooltip"

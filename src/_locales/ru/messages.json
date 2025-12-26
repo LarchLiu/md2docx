@@ -279,6 +279,18 @@
     "message": "Язык",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "Язык системы",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Переносить строки по мягким переносам в Markdown",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "Мягкие переносы строк",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "Ещё",
     "description": "More menu tooltip"

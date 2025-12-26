@@ -279,6 +279,18 @@
     "message": "언어",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "시스템 언어",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Markdown의 소프트 줄바꿈에서 줄을 바꿈",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "소프트 줄바꿈",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "더 보기",
     "description": "More menu tooltip"

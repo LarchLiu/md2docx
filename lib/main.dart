@@ -19,6 +19,7 @@ import 'services/recent_files_service.dart';
 import 'services/settings_service.dart';
 import 'services/theme_asset_service.dart';
 import 'services/theme_registry_service.dart';
+import 'pages/settings_page.dart';
 import 'widgets/theme_picker.dart';
 
 void main() async {
@@ -1094,7 +1095,7 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
                 children: [
                   // Auto option
                   RadioListTile<String?>(
-                    title: Text(localization.t('settings_language_auto')),
+                    title: Text(localization.t('mobile_settings_language_auto')),
                     value: null,
                     groupValue: localization.userSelectedLocale,
                     onChanged: (value) async {
@@ -1310,22 +1311,10 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
             child: _buildMenuItemContent(AntIcons.file_word, localization.t('export_docx')),
           ),
         PopupMenuItem<String>(
-          value: 'theme',
-          child: _buildMenuItemContent(AntIcons.bg_colors, localization.t('theme')),
-        ),
-        PopupMenuItem<String>(
-          value: 'zoom',
-          child: _buildMenuItemContent(AntIcons.font_size, localization.t('zoom')),
-        ),
-        PopupMenuItem<String>(
-          value: 'language',
-          child: _buildMenuItemContent(AntIcons.global, localization.t('language')),
+          value: 'settings',
+          child: _buildMenuItemContent(AntIcons.setting_outline, localization.t('tab_settings')),
         ),
         const PopupMenuDivider(),
-        PopupMenuItem<String>(
-          value: 'clear_cache',
-          child: _buildMenuItemContent(AntIcons.delete_outline, localization.t('cache_clear')),
-        ),
         PopupMenuItem<String>(
           value: 'about',
           child: _buildMenuItemContent(AntIcons.info_circle_outline, localization.t('about')),
@@ -1340,20 +1329,16 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
         case 'export_docx':
           _exportDocx();
           break;
-        case 'theme':
-          _showThemePicker();
-          break;
-        case 'zoom':
-          _showFontSizeSlider();
-          break;
-        case 'language':
-          _showLanguagePicker();
+        case 'settings':
+          if (!mounted) return;
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => SettingsPage(webViewController: _controller),
+            ),
+          );
           break;
         case 'recent':
           _showRecentFiles();
-          break;
-        case 'clear_cache':
-          _clearCache();
           break;
         case 'about':
           _showAbout();

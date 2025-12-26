@@ -279,6 +279,18 @@
     "message": "Langue",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "Langue du système",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Couper les lignes aux sauts de ligne souples dans Markdown",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "Sauts de ligne souples",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "Plus",
     "description": "More menu tooltip"

@@ -279,6 +279,18 @@
     "message": "Språk",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "Systemspråk",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Bryt linjer ved myke linjeskift i Markdown",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "Myke linjeskift",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "More",
     "description": "More menu tooltip"

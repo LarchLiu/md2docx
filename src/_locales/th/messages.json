@@ -279,6 +279,18 @@
     "message": "ภาษา",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "ภาษาของระบบ",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "ตัดบรรทัดที่ขึ้นบรรทัดแบบอ่อนใน Markdown",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "ขึ้นบรรทัดแบบอ่อน",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "More",
     "description": "More menu tooltip"

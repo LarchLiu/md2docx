@@ -279,6 +279,18 @@
     "message": "言語",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "システムの言語",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Markdown のソフト改行で行を折り返す",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "ソフト改行",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "その他",
     "description": "More menu tooltip"

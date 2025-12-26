@@ -279,6 +279,18 @@
     "message": "Lingua",
     "description": "Menu item for language"
   },
+  "mobile_settings_language_auto": {
+    "message": "Lingua di sistema",
+    "description": "Mobile settings: label for auto language selection (follow system language)"
+  },
+  "mobile_settings_soft_line_breaks_desc": {
+    "message": "Vai a capo alle interruzioni di riga morbide in Markdown",
+    "description": "Mobile settings: description for the soft line breaks toggle"
+  },
+  "mobile_settings_soft_line_breaks_title": {
+    "message": "Interruzioni di riga morbide",
+    "description": "Mobile settings: title for the soft line breaks toggle"
+  },
   "more": {
     "message": "Altro",
     "description": "More menu tooltip"

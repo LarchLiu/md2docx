@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:webview_flutter/webview_flutter.dart';
-import 'package:package_info_plus/package_info_plus.dart';
+import 'dart:convert';
 import '../services/cache_service.dart';
+import '../services/localization_service.dart';
 import '../services/settings_service.dart';
+import '../services/theme_asset_service.dart';
+import '../services/theme_registry_service.dart';
+import '../widgets/theme_picker.dart';
 
 /// Settings page for the app
 class SettingsPage extends StatefulWidget {
@@ -20,24 +24,13 @@ class SettingsPage extends StatefulWidget {
 class _SettingsPageState extends State<SettingsPage> {
   bool _clearingCache = false;
   bool _loadingStats = false;
-  String _version = '...';
-  String _cacheSize = 'Loading...';
+  String _cacheSize = '';
   int _cacheCount = 0;
 
   @override
   void initState() {
     super.initState();
-    _loadVersion();
     _loadCacheStats();
-  }
-
-  Future<void> _loadVersion() async {
-    final packageInfo = await PackageInfo.fromPlatform();
-    if (mounted) {
-      setState(() {
-        _version = packageInfo.version;
-      });
-    }
   }
 
   Future<void> _loadCacheStats() async {
@@ -59,7 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
       debugPrint('[Settings] Failed to load cache stats: $e');
       if (mounted) {
         setState(() {
-          _cacheSize = 'N/A';
+          _cacheSize = '';
         });
       }
     } finally {
@@ -71,20 +64,34 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
-  Future<void> _refreshCacheStats() async {
-    await _loadCacheStats();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Settings'),
+        title: Text(localization.t('tab_settings')),
       ),
       body: ListView(
         children: [
+          // Interface section
+          _SectionHeader(title: localization.t('settings_interface_title')),
+          ListTile(
+            leading: const Icon(Icons.palette_outlined),
+            title: Text(localization.t('theme')),
+            subtitle: Text(_getCurrentThemeDisplayName()),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickTheme,
+          ),
+          ListTile(
+            leading: const Icon(Icons.language_outlined),
+            title: Text(localization.t('language')),
+            subtitle: Text(_getCurrentLanguageDisplayName()),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: _pickLanguage,
+          ),
+          const Divider(),
+
           // Display section
-          _SectionHeader(title: 'Display'),
+          _SectionHeader(title: localization.t('settings_general_title')),
           _FontSizeTile(
             fontSize: settingsService.fontSize,
             onChanged: (size) {
@@ -95,8 +102,8 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           _SwitchTile(
-            title: 'Soft Line Breaks',
-            subtitle: 'Break lines at soft line breaks in markdown',
+            title: localization.t('mobile_settings_soft_line_breaks_title'),
+            subtitle: localization.t('mobile_settings_soft_line_breaks_desc'),
             value: settingsService.lineBreaks,
             onChanged: (value) {
               setState(() {
@@ -106,31 +113,13 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           const Divider(),
-
-          // Cache section
-          _SectionHeader(title: 'Cache'),
-          ListTile(
-            leading: const Icon(Icons.storage_outlined),
-            title: const Text('Cache Size'),
-            subtitle: Text(_cacheSize),
-            trailing: _loadingStats
-                ? const SizedBox(
-                    width: 24,
-                    height: 24,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.chevron_right),
-            onTap: _loadingStats ? null : _refreshCacheStats,
-          ),
-          ListTile(
-            leading: const Icon(Icons.layers_outlined),
-            title: const Text('Cached Items'),
-            subtitle: Text('$_cacheCount items'),
-          ),
           ListTile(
             leading: const Icon(Icons.cleaning_services_outlined),
-            title: const Text('Clear Render Cache'),
-            subtitle: const Text('Clear cached diagram renders'),
+            title: Text(localization.t('cache_clear')),
+            subtitle: Text(
+              '${localization.t('cache_stat_size_label')}: ${_loadingStats ? '…' : (_cacheSize.isEmpty ? '…' : _cacheSize)}\n'
+              '${localization.t('cache_stat_item_label')}: $_cacheCount',
+            ),
             trailing: _clearingCache
                 ? const SizedBox(
                     width: 24,
@@ -139,15 +128,6 @@ class _SettingsPageState extends State<SettingsPage> {
                   )
                 : const Icon(Icons.chevron_right),
             onTap: _clearingCache ? null : _clearCache,
-          ),
-          const Divider(),
-
-          // About section
-          _SectionHeader(title: 'About'),
-          ListTile(
-            leading: const Icon(Icons.info_outline),
-            title: const Text('Version'),
-            subtitle: Text(_version),
           ),
         ],
       ),
@@ -191,7 +171,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cache cleared')),
+          SnackBar(content: Text(localization.t('cache_clear_success'))),
         );
         // Refresh stats after clearing
         await _loadCacheStats();
@@ -200,7 +180,7 @@ class _SettingsPageState extends State<SettingsPage> {
       debugPrint('[Settings] Failed to clear cache: $e');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to clear cache: $e')),
+          SnackBar(content: Text(localization.t('cache_clear_failed'))),
         );
       }
     } finally {
@@ -210,6 +190,174 @@ class _SettingsPageState extends State<SettingsPage> {
         });
       }
     }
+  }
+
+  String _getCurrentThemeDisplayName() {
+    final currentTheme = settingsService.theme;
+    final useChinese = themeRegistry.useChineseNames;
+    final theme = themeRegistry.themes
+        .where((t) => t.id == currentTheme)
+        .cast<dynamic?>()
+        .firstWhere((t) => t != null, orElse: () => null);
+    if (theme == null) return currentTheme;
+
+    final zhName = (theme as dynamic).displayNameZh as String?;
+    final enName = (theme as dynamic).displayName as String?;
+    return (useChinese ? (zhName ?? enName) : (enName ?? zhName)) ?? currentTheme;
+  }
+
+  Future<void> _pickTheme() async {
+    final selectedTheme = await ThemePicker.show(context, settingsService.theme);
+    if (!mounted) return;
+    if (selectedTheme == null || selectedTheme == settingsService.theme) return;
+
+    settingsService.theme = selectedTheme;
+    setState(() {});
+
+    final controller = widget.webViewController;
+    if (controller == null) return;
+
+    try {
+      final themeData = await themeAssetService.getCompleteThemeData(selectedTheme);
+      final json = jsonEncode(themeData);
+      final escaped = json.replaceAll('\\', '\\\\').replaceAll("'", "\\'");
+      await controller.runJavaScript(
+        "if(window.applyThemeData){window.applyThemeData('$escaped');}",
+      );
+    } catch (e) {
+      debugPrint('[Settings] Failed to apply theme: $e');
+    }
+  }
+
+  String _getCurrentLanguageDisplayName() {
+    // Same mapping used in the main menu picker
+    const localeKeyMap = {
+      'da': 'settings_language_da',
+      'de': 'settings_language_de',
+      'en': 'settings_language_en',
+      'es': 'settings_language_es',
+      'fi': 'settings_language_fi',
+      'fr': 'settings_language_fr',
+      'hi': 'settings_language_hi',
+      'id': 'settings_language_id',
+      'it': 'settings_language_it',
+      'ja': 'settings_language_ja',
+      'ko': 'settings_language_ko',
+      'nl': 'settings_language_nl',
+      'no': 'settings_language_no',
+      'pl': 'settings_language_pl',
+      'pt_BR': 'settings_language_pt_br',
+      'pt_PT': 'settings_language_pt_pt',
+      'ru': 'settings_language_ru',
+      'sv': 'settings_language_sv',
+      'th': 'settings_language_th',
+      'tr': 'settings_language_tr',
+      'vi': 'settings_language_vi',
+      'zh_CN': 'settings_language_zh_cn',
+      'zh_TW': 'settings_language_zh_tw',
+    };
+
+    final selected = localization.userSelectedLocale;
+    if (selected == null) {
+      return localization.t('mobile_settings_language_auto');
+    }
+    final key = localeKeyMap[selected] ?? 'settings_language_en';
+    return localization.t(key);
+  }
+
+  void _pickLanguage() {
+    // Locale code to translation key mapping
+    const localeKeyMap = {
+      'da': 'settings_language_da',
+      'de': 'settings_language_de',
+      'en': 'settings_language_en',
+      'es': 'settings_language_es',
+      'fi': 'settings_language_fi',
+      'fr': 'settings_language_fr',
+      'hi': 'settings_language_hi',
+      'id': 'settings_language_id',
+      'it': 'settings_language_it',
+      'ja': 'settings_language_ja',
+      'ko': 'settings_language_ko',
+      'nl': 'settings_language_nl',
+      'no': 'settings_language_no',
+      'pl': 'settings_language_pl',
+      'pt_BR': 'settings_language_pt_br',
+      'pt_PT': 'settings_language_pt_pt',
+      'ru': 'settings_language_ru',
+      'sv': 'settings_language_sv',
+      'th': 'settings_language_th',
+      'tr': 'settings_language_tr',
+      'vi': 'settings_language_vi',
+      'zh_CN': 'settings_language_zh_cn',
+      'zh_TW': 'settings_language_zh_tw',
+    };
+
+    showModalBottomSheet(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(
+                localization.t('language'),
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                children: [
+                  RadioListTile<String?>(
+                    title: Text(localization.t('mobile_settings_language_auto')),
+                    value: null,
+                    groupValue: localization.userSelectedLocale,
+                    onChanged: (value) async {
+                      await localization.setLocale(null);
+                      if (mounted) {
+                        Navigator.pop(context);
+                        setState(() {});
+                        final controller = widget.webViewController;
+                        if (controller != null) {
+                          controller.runJavaScript(
+                            "if(window.setLocale){window.setLocale('${localization.currentLocale}');}",
+                          );
+                        }
+                      }
+                    },
+                  ),
+                  const Divider(height: 1),
+                  ...LocalizationService.supportedLocales.map((locale) {
+                    final key = localeKeyMap[locale] ?? 'settings_language_en';
+                    return RadioListTile<String?>(
+                      title: Text(localization.t(key)),
+                      value: locale,
+                      groupValue: localization.userSelectedLocale,
+                      onChanged: (value) async {
+                        if (value == null) return;
+                        await localization.setLocale(value);
+                        if (mounted) {
+                          Navigator.pop(context);
+                          setState(() {});
+                          final controller = widget.webViewController;
+                          if (controller != null) {
+                            controller.runJavaScript(
+                              "if(window.setLocale){window.setLocale('$value');}",
+                            );
+                          }
+                        }
+                      },
+                    );
+                  }),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -247,7 +395,7 @@ class _FontSizeTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       leading: const Icon(Icons.format_size),
-      title: const Text('Font Size'),
+      title: Text(localization.t('zoom')),
       subtitle: Text('$fontSize pt'),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
