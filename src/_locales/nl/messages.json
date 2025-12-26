@@ -203,6 +203,10 @@
     "message": "Kan bestand niet openen: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "URL kon niet worden geopend: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Delen mislukt: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "More",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Geen bestand geopend",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "Geen bestand om te delen",

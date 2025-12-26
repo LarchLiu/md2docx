@@ -203,6 +203,10 @@
     "message": "開啟檔案失敗: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "無法打開URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "分享失敗: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "更多",
     "description": "More options menu"
+  },
+  "no_file_opened": {
+    "message": "未開啟任何文件",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "沒有可分享的檔案",

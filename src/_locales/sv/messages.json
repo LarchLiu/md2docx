@@ -203,6 +203,10 @@
     "message": "Kunde inte öppna fil: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "Kunde inte öppna URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Kunde inte dela: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "More",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Ingen fil öppen",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "Ingen fil att dela",

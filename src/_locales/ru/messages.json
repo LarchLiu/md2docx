@@ -203,6 +203,10 @@
     "message": "Не удалось открыть файл: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "Не удалось открыть URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Не удалось поделиться: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "Ещё",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Файл не открыт",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "Нет файла для отправки",

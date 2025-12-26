@@ -203,6 +203,10 @@
     "message": "파일 열기 실패: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "URL을 열 수 없습니다: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "공유 실패: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "더 보기",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "열린 파일이 없습니다",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "공유할 파일이 없습니다",

@@ -203,6 +203,10 @@
     "message": "Error al abrir archivo: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "No se pudo abrir la URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Error al compartir: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "Más",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Ningún archivo abierto",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "No hay archivo para compartir",

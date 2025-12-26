@@ -3,7 +3,7 @@ name: markdown_viewer_mobile
 description: Flutter wrapper for markdown-viewer WebView
 publish_to: 'none'
 
-version: 1.2.2+1
+version: 1.3.0+1
 
 environment:
   sdk: '>=3.3.0 <4.0.0'

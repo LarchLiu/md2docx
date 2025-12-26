@@ -203,6 +203,10 @@
     "message": "Nie udało się otworzyć pliku: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "Nie udało się otworzyć adresu URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Nie udało się udostępnić: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "More",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Nie otwarto żadnego pliku",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "Brak pliku do udostępnienia",

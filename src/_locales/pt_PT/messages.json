@@ -203,6 +203,10 @@
     "message": "Falha ao abrir ficheiro: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "Falha ao abrir URL: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "Falha ao partilhar: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "Mais",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "Nenhum ficheiro aberto",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "Nenhum ficheiro para partilhar",

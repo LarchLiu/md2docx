@@ -203,6 +203,10 @@
     "message": "ファイルを開けませんでした: {0}",
     "description": "Toast when file open fails"
   },
+  "failed_to_open_url": {
+    "message": "URLを開くことができません: {0}",
+    "description": "Error message when URL cannot be opened"
+  },
   "failed_to_share": {
     "message": "共有に失敗しました: {0}",
     "description": "Toast when sharing fails"
@@ -294,6 +298,10 @@
   "more": {
     "message": "その他",
     "description": "More menu tooltip"
+  },
+  "no_file_opened": {
+    "message": "ファイルが開かれていません",
+    "description": "Message when trying to perform action without file"
   },
   "no_file_to_share": {
     "message": "共有するファイルがありません",
