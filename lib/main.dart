@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
 // Import for Android features
 import 'package:webview_flutter_android/webview_flutter_android.dart';
@@ -358,7 +359,28 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
 
         case 'OPEN_URL':
           if (payload is Map) {
-            // TODO: launch external URL
+            final url = payload['url'] as String?;
+            if (url != null) {
+              _launchURL(url);
+            }
+          }
+          break;
+
+        case 'LOAD_RELATIVE_MARKDOWN':
+          if (payload is Map) {
+            final path = payload['path'] as String?;
+            if (path != null) {
+              _loadRelativeMarkdown(path);
+            }
+          }
+          break;
+
+        case 'OPEN_RELATIVE_FILE':
+          if (payload is Map) {
+            final path = payload['path'] as String?;
+            if (path != null) {
+              _openRelativeFile(path);
+            }
           }
           break;
 
@@ -792,6 +814,160 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
       });
     } catch (e) {
       debugPrint('[Mobile] JS injection error: $e');
+    }
+  }
+
+  /// Launch external URL in system browser
+  Future<void> _launchURL(String urlString) async {
+    try {
+      final url = Uri.parse(urlString);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('[Mobile] Cannot launch URL: $urlString');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localization.t('failed_to_open_url', [urlString]))),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[Mobile] Launch URL error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(localization.t('failed_to_open_url', [e.toString()]))),
+        );
+      }
+    }
+  }
+
+  /// Load relative markdown file
+  Future<void> _loadRelativeMarkdown(String relativePath) async {
+    try {
+      if (_currentFileDir == null) {
+        debugPrint('[Mobile] Cannot load relative markdown: no current file directory');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localization.t('no_file_opened'))),
+          );
+        }
+        return;
+      }
+
+      // Resolve relative path
+      String absolutePath;
+      if (relativePath.startsWith('./')) {
+        absolutePath = '$_currentFileDir/${relativePath.substring(2)}';
+      } else if (relativePath.startsWith('../')) {
+        final baseDir = Directory(_currentFileDir!);
+        absolutePath = '${baseDir.path}/$relativePath';
+        absolutePath = File(absolutePath).absolute.path;
+      } else if (relativePath.startsWith('/')) {
+        absolutePath = relativePath;
+      } else {
+        absolutePath = '$_currentFileDir/$relativePath';
+      }
+
+      // Normalize path
+      final file = File(absolutePath);
+      absolutePath = file.absolute.path;
+
+      if (!await file.exists()) {
+        debugPrint('[Mobile] Relative markdown file not found: $absolutePath');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localization.t('file_not_found'))),
+          );
+        }
+        return;
+      }
+
+      // Read and load the markdown file
+      final content = await file.readAsString();
+      final filename = file.uri.pathSegments.last;
+
+      // Update current file directory and path
+      _currentFileDir = file.parent.path;
+      _currentFilePath = absolutePath;
+
+      // Add to recent files
+      await recentFilesService.add(absolutePath, filename, content: content);
+
+      setState(() {
+        _currentFilename = filename;
+      });
+
+      if (_webViewReady) {
+        await _loadMarkdownIntoWebView(content, filename);
+      } else {
+        _pendingContent = content;
+        _pendingFilename = filename;
+      }
+    } catch (e) {
+      debugPrint('[Mobile] Load relative markdown error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(localization.t('failed_to_open_file', [e.toString()]))),
+        );
+      }
+    }
+  }
+
+  /// Open relative file with system handler
+  Future<void> _openRelativeFile(String relativePath) async {
+    try {
+      if (_currentFileDir == null) {
+        debugPrint('[Mobile] Cannot open relative file: no current file directory');
+        return;
+      }
+
+      // Resolve relative path
+      String absolutePath;
+      if (relativePath.startsWith('./')) {
+        absolutePath = '$_currentFileDir/${relativePath.substring(2)}';
+      } else if (relativePath.startsWith('../')) {
+        final baseDir = Directory(_currentFileDir!);
+        absolutePath = '${baseDir.path}/$relativePath';
+        absolutePath = File(absolutePath).absolute.path;
+      } else if (relativePath.startsWith('/')) {
+        absolutePath = relativePath;
+      } else {
+        absolutePath = '$_currentFileDir/$relativePath';
+      }
+
+      // Normalize path
+      final file = File(absolutePath);
+      absolutePath = file.absolute.path;
+
+      if (!await file.exists()) {
+        debugPrint('[Mobile] Relative file not found: $absolutePath');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localization.t('file_not_found'))),
+          );
+        }
+        return;
+      }
+
+      // Try to open with system handler using url_launcher
+      final url = Uri.file(absolutePath);
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        debugPrint('[Mobile] Cannot open file: $absolutePath');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(localization.t('failed_to_open_file', [absolutePath]))),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('[Mobile] Open relative file error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(localization.t('failed_to_open_file', [e.toString()]))),
+        );
+      }
     }
   }
 

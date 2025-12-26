@@ -321,12 +321,32 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
  * Post-process rendered content
  */
 async function postProcessContent(container: Element): Promise<void> {
-  // Make external links open in system browser
-  const links = container.querySelectorAll('a[href^="http"]');
+  // Handle all links
+  const links = container.querySelectorAll('a[href]');
   for (const link of links) {
+    const anchor = link as HTMLAnchorElement;
+    const href = anchor.getAttribute('href') || '';
+    
     link.addEventListener('click', (e) => {
       e.preventDefault();
-      bridge.postMessage('OPEN_URL', { url: (link as HTMLAnchorElement).href });
+      
+      // External links (http/https) - open in system browser
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        bridge.postMessage('OPEN_URL', { url: href });
+      }
+      // Relative links
+      else {
+        // Check if it's a markdown file
+        const isMarkdown = href.endsWith('.md') || href.endsWith('.markdown');
+        
+        if (isMarkdown) {
+          // Load markdown file internally
+          bridge.postMessage('LOAD_RELATIVE_MARKDOWN', { path: href });
+        } else {
+          // For other relative files (images, etc.), try to open with system handler
+          bridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
+        }
+      }
     });
   }
 }
