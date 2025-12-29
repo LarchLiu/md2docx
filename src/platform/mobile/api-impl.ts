@@ -6,20 +6,13 @@
 
 import {
   BaseI18nService,
-  BaseRendererService,
   DEFAULT_SETTING_LOCALE,
   FALLBACK_LOCALE
 } from '../shared/index';
 
 import type {
-  LocaleMessages,
-  QueueContext
+  LocaleMessages
 } from '../shared/index';
-
-import type {
-  RendererThemeConfig,
-  RenderResult
-} from '../../types/index';
 
 import type { PlatformBridgeAPI } from '../../types/index';
 
@@ -28,10 +21,9 @@ import { RenderChannel } from '../../messaging/channels/render-channel';
 import { FlutterJsChannelTransport } from '../../messaging/transports/flutter-jschannel-transport';
 import { WindowPostMessageTransport } from '../../messaging/transports/window-postmessage-transport';
 
-import type { RenderHost } from '../../renderers/host/render-host';
 import { IframeRenderHost } from '../../renderers/host/iframe-render-host';
 
-import { CacheService, StorageService, FileService } from '../../services';
+import { CacheService, StorageService, FileService, RendererService } from '../../services';
 
 // ============================================================================
 // Type Definitions
@@ -146,207 +138,6 @@ class MobileMessageService {
 }
 
 // ============================================================================
-// Mobile Renderer Service
-// ============================================================================
-
-/**
- * Render request payload
- */
-interface RenderRequestPayload {
-  renderType: string;
-  input: string | object;
-  themeConfig: RendererThemeConfig | null;
-}
-
-/**
- * Render response
- */
-interface MobileRenderResult {
-  base64?: string;
-  svg?: string;
-  width: number;
-  height: number;
-  format: string;
-}
-
-/**
- * Mobile Renderer Service
- * Renders diagrams in a separate iframe to avoid blocking main thread
- * Similar to Chrome extension's offscreen document approach
- * Extends BaseRendererService for common theme config handling
- * 
- * Uses postMessage READY/ACK handshake with render frame.
- */
-class MobileRendererService extends BaseRendererService {
-  private host: RenderHost;
-  private requestQueue: Promise<void>;
-  private queueContext: QueueContext;
-
-  constructor() {
-    super();
-    this.host = new IframeRenderHost({
-      iframeUrl: './iframe-render.html',
-      source: 'mobile-parent',
-    });
-    this.requestQueue = Promise.resolve();
-    this.queueContext = { cancelled: false, id: 0 };
-  }
-
-  /**
-   * Initialize the renderer
-   */
-  async init(): Promise<void> {
-    // Mobile renderer initialization - iframe is created when first needed
-  }
-
-  /**
-   * Cancel all pending requests and create new queue context
-   * Called when starting a new render to cancel previous requests
-   */
-  cancelPending(): void {
-    this.queueContext.cancelled = true;
-    this.queueContext = { cancelled: false, id: this.queueContext.id + 1 };
-    this.requestQueue = Promise.resolve();
-  }
-
-  /**
-   * Get current queue context for requests to reference
-   */
-  getQueueContext(): QueueContext {
-    return this.queueContext;
-  }
-
-  /**
-   * Wait for render iframe to be ready
-   */
-  async ensureIframe(): Promise<void> {
-    await this.host.ensureReady();
-  }
-
-  /**
-   * Send message to iframe and wait for response
-   * Requests are serialized: wait for previous request to complete before sending next
-   * Each request has its own timeout
-   */
-  sendRequest<T = unknown>(
-    type: string,
-    payload: unknown = {},
-    timeout: number = 60000,
-    context: QueueContext | null = null
-  ): Promise<T> {
-    const requestContext = context || this.queueContext;
-    
-    if (requestContext.cancelled) {
-      return Promise.reject(new Error('Request cancelled'));
-    }
-    
-    const request = this.requestQueue.then(() => {
-      if (requestContext.cancelled) {
-        return Promise.reject(new Error('Request cancelled'));
-      }
-      return this._doSendRequest<T>(type, payload, timeout, requestContext);
-    });
-    
-    this.requestQueue = request.catch(() => {}) as Promise<void>;
-    
-    return request;
-  }
-  
-  /**
-   * Actually send the request and wait for response
-   */
-  private _doSendRequest<T>(
-    type: string,
-    payload: unknown,
-    timeout: number,
-    context: QueueContext
-  ): Promise<T> {
-    if (context.cancelled) {
-      return Promise.reject(new Error('Request cancelled'));
-    }
-
-    return this.host.send<T>(type, payload, timeout).then((data) => {
-      if (context.cancelled) {
-        throw new Error('Request cancelled');
-      }
-      return data as T;
-    });
-  }
-
-  // Keep for compatibility, but not used with iframe approach
-  registerRenderer(_type: string, _renderer: unknown): void {
-    // No-op: renderers are loaded inside iframe
-  }
-
-  /**
-   * Set theme configuration for rendering
-   */
-  async setThemeConfig(config: RendererThemeConfig): Promise<void> {
-    this.themeConfig = config;
-    await this.ensureIframe();
-    await this.sendRequest('SET_THEME_CONFIG', { config });
-  }
-
-  /**
-   * Render content using the iframe renderer
-   */
-  async render(
-    type: string,
-    input: string | object,
-    context: QueueContext | null = null
-  ): Promise<MobileRenderResult> {
-    const renderContext = context || this.queueContext;
-    
-    if (renderContext.cancelled) {
-      throw new Error('Render cancelled');
-    }
-    
-    const cache = window.__mobilePlatformCache;
-    if (cache) {
-      const inputString = typeof input === 'string' ? input : JSON.stringify(input);
-      const contentKey = inputString;
-      const cacheType = `${type.toUpperCase()}_PNG`;
-      const cacheKey = await cache.generateKey(contentKey, cacheType, this.themeConfig);
-
-      const cached = await cache.get(cacheKey);
-      if (cached) {
-        return cached as MobileRenderResult;
-      }
-      
-      if (renderContext.cancelled) {
-        throw new Error('Render cancelled');
-      }
-
-      await this.ensureIframe();
-      const result = await this.sendRequest<MobileRenderResult>('RENDER_DIAGRAM', {
-        renderType: type,
-        input,
-        themeConfig: this.themeConfig
-      } as RenderRequestPayload, 60000, renderContext);
-
-      cache.set(cacheKey, result, cacheType).catch(() => {});
-
-      return result;
-    }
-
-    if (renderContext.cancelled) {
-      throw new Error('Render cancelled');
-    }
-    
-    await this.ensureIframe();
-    return this.sendRequest<MobileRenderResult>('RENDER_DIAGRAM', {
-      renderType: type,
-      input,
-      themeConfig: this.themeConfig
-    } as RenderRequestPayload, 60000, renderContext);
-  }
-
-  async cleanup(): Promise<void> {
-    await this.host.cleanup?.();
-  }
-}
-
-// ============================================================================
 // Mobile I18n Service
 // ============================================================================
 
@@ -418,7 +209,7 @@ class MobilePlatformAPI {
   public readonly resource: MobileResourceService;
   public readonly message: MobileMessageService;
   public readonly cache: CacheService;
-  public readonly renderer: MobileRendererService;
+  public readonly renderer: RendererService;
   public readonly i18n: MobileI18nService;
   
   // Internal bridge reference (for advanced usage)
@@ -431,14 +222,21 @@ class MobilePlatformAPI {
     this.resource = new MobileResourceService();
     this.message = new MobileMessageService();
     this.cache = cacheService; // Use unified cache service
-    this.renderer = new MobileRendererService();
+    
+    // Unified renderer service with IframeRenderHost
+    this.renderer = new RendererService({
+      createHost: () => new IframeRenderHost({
+        iframeUrl: './iframe-render.html',
+        source: 'mobile-parent',
+      }),
+      cache: this.cache,
+      useRequestQueue: true,
+    });
+    
     this.i18n = new MobileI18nService();
     
     // Internal bridge reference
     this._bridge = bridge;
-
-    // Expose cache globally for renderer to use
-    window.__mobilePlatformCache = this.cache;
   }
 
   /**
@@ -476,10 +274,8 @@ class MobilePlatformAPI {
 export const platform = new MobilePlatformAPI();
 
 export {
-  MobileFileService,
   MobileResourceService,
   MobileMessageService,
-  MobileRendererService,
   MobileI18nService,
   MobilePlatformAPI,
   DEFAULT_SETTING_LOCALE

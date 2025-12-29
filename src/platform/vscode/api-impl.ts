@@ -7,26 +7,20 @@
 
 import {
   BaseI18nService,
-  BaseRendererService,
   DEFAULT_SETTING_LOCALE,
   FALLBACK_LOCALE
 } from '../shared/index';
 
 import type {
-  LocaleMessages,
-  QueueContext
+  LocaleMessages
 } from '../shared/index';
-
-import type {
-  RendererThemeConfig,
-  RenderResult
-} from '../../types/index';
 
 import type { PlatformBridgeAPI } from '../../types/index';
 
 import { ServiceChannel } from '../../messaging/channels/service-channel';
 import { VSCodeWebviewTransport } from '../../messaging/transports/vscode-webview-transport';
-import { CacheService, StorageService, FileService } from '../../services';
+import { CacheService, StorageService, FileService, RendererService } from '../../services';
+import { IframeRenderHost } from '../../renderers/host/iframe-render-host';
 
 // ============================================================================
 // Service Channel (Extension Host ↔ Webview)
@@ -90,202 +84,6 @@ class VSCodeResourceService {
 }
 
 // ============================================================================
-// VSCode Renderer Service (uses iframe like Mobile)
-// ============================================================================
-
-import type { RenderHost } from '../../renderers/host/render-host';
-import { IframeRenderHost } from '../../renderers/host/iframe-render-host';
-
-/**
- * Render request payload
- */
-interface RenderRequestPayload {
-  renderType: string;
-  input: string | object;
-  themeConfig: RendererThemeConfig | null;
-}
-
-/**
- * VSCode Renderer Service
- * Renders diagrams in a separate iframe to avoid blocking main thread
- * Same architecture as Mobile platform
- * 
- * Uses postMessage READY/ACK handshake with render frame.
- */
-class VSCodeRendererService extends BaseRendererService {
-  private host: RenderHost | null = null;
-  private cache: CacheService;
-  private resourceService: VSCodeResourceService;
-  private requestQueue: Promise<void>;
-  private queueContext: QueueContext;
-
-  constructor(cache: CacheService, resourceService: VSCodeResourceService) {
-    super();
-    this.cache = cache;
-    this.resourceService = resourceService;
-    this.requestQueue = Promise.resolve();
-    this.queueContext = { cancelled: false, id: 0 };
-  }
-
-  async init(): Promise<void> {
-    // Get nonce from parent window (set by preview-panel.ts)
-    const nonce = (window as unknown as { VSCODE_NONCE?: string }).VSCODE_NONCE;
-    
-    this.host = new IframeRenderHost({
-      // Use fetchHtmlContent to load HTML and create srcdoc iframe
-      // This avoids CSP script-src restrictions in VSCode webview
-      fetchHtmlContent: async () => {
-        const html = await this.resourceService.fetch('iframe-render.html');
-        return html;
-      },
-      // Pass nonce to iframe so scripts can execute under parent's CSP
-      nonce,
-      source: 'vscode-parent',
-    });
-  }
-
-  /**
-   * Cancel all pending requests and create new queue context
-   * Called when starting a new render to cancel previous requests
-   */
-  cancelPending(): void {
-    this.queueContext.cancelled = true;
-    this.queueContext = { cancelled: false, id: this.queueContext.id + 1 };
-    this.requestQueue = Promise.resolve();
-  }
-
-  /**
-   * Get current queue context for requests to reference
-   */
-  getQueueContext(): QueueContext {
-    return this.queueContext;
-  }
-
-  /**
-   * Wait for render iframe to be ready
-   */
-  async ensureIframe(): Promise<void> {
-    if (this.host) {
-      await this.host.ensureReady();
-    }
-  }
-
-  /**
-   * Send message to iframe and wait for response
-   * Requests are serialized: wait for previous request to complete before sending next
-   * Each request has its own timeout
-   */
-  sendRequest<T = unknown>(
-    type: string,
-    payload: unknown = {},
-    timeout: number = 60000,
-    context: QueueContext | null = null
-  ): Promise<T> {
-    const requestContext = context || this.queueContext;
-    
-    if (requestContext.cancelled) {
-      return Promise.reject(new Error('Request cancelled'));
-    }
-    
-    const request = this.requestQueue.then(() => {
-      if (requestContext.cancelled) {
-        return Promise.reject(new Error('Request cancelled'));
-      }
-      return this._doSendRequest<T>(type, payload, timeout, requestContext);
-    });
-    
-    this.requestQueue = request.catch(() => {}) as Promise<void>;
-    
-    return request;
-  }
-  
-  /**
-   * Actually send the request and wait for response
-   */
-  private _doSendRequest<T>(
-    type: string,
-    payload: unknown,
-    timeout: number,
-    context: QueueContext
-  ): Promise<T> {
-    if (context.cancelled) {
-      return Promise.reject(new Error('Request cancelled'));
-    }
-
-    if (!this.host) {
-      return Promise.reject(new Error('Renderer not initialized'));
-    }
-
-    return this.host.send<T>(type, payload, timeout).then((data) => {
-      if (context.cancelled) {
-        throw new Error('Request cancelled');
-      }
-      return data as T;
-    });
-  }
-
-  // Keep for compatibility, but not used with iframe approach
-  registerRenderer(_type: string, _renderer: unknown): void {
-    // No-op: renderers are loaded inside iframe
-  }
-
-  /**
-   * Set theme configuration for rendering
-   */
-  async setThemeConfig(config: RendererThemeConfig): Promise<void> {
-    this.themeConfig = config;
-    await this.ensureIframe();
-    await this.sendRequest('SET_THEME_CONFIG', { config });
-  }
-
-  /**
-   * Render content using the iframe renderer
-   */
-  async render(
-    type: string,
-    input: string | object,
-    context: QueueContext | null = null
-  ): Promise<RenderResult> {
-    const renderContext = context || this.queueContext;
-    
-    if (renderContext.cancelled) {
-      throw new Error('Render cancelled');
-    }
-    
-    // Generate cache key
-    const inputString = typeof input === 'string' ? input : JSON.stringify(input);
-    const cacheType = `${type.toUpperCase()}_PNG`;
-    const cacheKey = await this.cache.generateKey(inputString, cacheType, this.themeConfig);
-
-    // Check cache first
-    const cached = await this.cache.get(cacheKey);
-    if (cached) {
-      return cached as RenderResult;
-    }
-    
-    if (renderContext.cancelled) {
-      throw new Error('Render cancelled');
-    }
-
-    await this.ensureIframe();
-    const result = await this.sendRequest<RenderResult>('RENDER_DIAGRAM', {
-      renderType: type,
-      input,
-      themeConfig: this.themeConfig
-    } as RenderRequestPayload, 60000, renderContext);
-
-    // Cache the result
-    this.cache.set(cacheKey, result, cacheType).catch(() => {});
-
-    return result;
-  }
-
-  async cleanup(): Promise<void> {
-    await this.host?.cleanup?.();
-  }
-}
-
-// ============================================================================
 // VSCode I18n Service
 // ============================================================================
 
@@ -345,7 +143,7 @@ export class VSCodePlatformAPI {
   public readonly file: FileService;
   public readonly resource: VSCodeResourceService;
   public readonly cache: CacheService;
-  public readonly renderer: VSCodeRendererService;
+  public readonly renderer: RendererService;
   public readonly i18n: VSCodeI18nService;
 
   constructor() {
@@ -353,14 +151,31 @@ export class VSCodePlatformAPI {
     this.file = fileService;       // Use unified file service
     this.resource = new VSCodeResourceService();
     this.cache = cacheService; // Use unified cache service
-    this.renderer = new VSCodeRendererService(this.cache, this.resource);
+    
+    // Get nonce from parent window (set by preview-panel.ts)
+    const nonce = (window as unknown as { VSCODE_NONCE?: string }).VSCODE_NONCE;
+    
+    // Unified renderer service with IframeRenderHost (lazy initialization)
+    // VSCode needs special handling: fetchHtmlContent to load HTML into srcdoc
+    // This avoids CSP script-src restrictions in VSCode webview
+    this.renderer = new RendererService({
+      createHost: () => new IframeRenderHost({
+        fetchHtmlContent: async () => {
+          return this.resource.fetch('iframe-render.html');
+        },
+        nonce,
+        source: 'vscode-parent',
+      }),
+      cache: this.cache,
+      useRequestQueue: true,
+    });
+    
     this.i18n = new VSCodeI18nService(this.resource);
   }
 
   async init(): Promise<void> {
     await this.cache.init();
     await this.i18n.init();
-    await this.renderer.init();
   }
 
   /**

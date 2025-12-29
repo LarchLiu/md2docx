@@ -6,7 +6,6 @@
 
 import {
   BaseI18nService,
-  BaseRendererService,
   DEFAULT_SETTING_LOCALE,
   FALLBACK_LOCALE
 } from '../shared/index';
@@ -15,17 +14,11 @@ import type {
   LocaleMessages
 } from '../shared/index';
 
-import type {
-  RendererThemeConfig,
-  RenderResult
-} from '../../types/index';
-
-import type { RenderHost } from '../../renderers/host/render-host';
 import { OffscreenRenderHost } from './hosts/offscreen-render-host';
 
 import { ServiceChannel } from '../../messaging/channels/service-channel';
 import { ChromeRuntimeTransport } from '../../messaging/transports/chrome-runtime-transport';
-import { CacheService, StorageService, FileService } from '../../services';
+import { CacheService, StorageService, FileService, RendererService } from '../../services';
 
 // ============================================================================
 // Type Definitions
@@ -159,106 +152,6 @@ export class ChromeMessageService {
 }
 
 // ============================================================================
-// Chrome Renderer Service
-// Uses offscreen document for rendering diagrams (mermaid, vega, etc.)
-// ============================================================================
-
-export class ChromeRendererService extends BaseRendererService {
-  private messageService: ChromeMessageService;
-  private offscreenHost: RenderHost | null = null;
-  private themeDirty = false;
-  private cache: CacheService;
-
-  constructor(messageService: ChromeMessageService, cacheService: CacheService) {
-    super();
-    this.messageService = messageService;
-    this.cache = cacheService;
-  }
-
-  async init(): Promise<void> {
-    // Renderer initialization handled by background/offscreen
-  }
-
-  private getHost(): RenderHost {
-    if (!this.offscreenHost) {
-      this.offscreenHost = new OffscreenRenderHost(this.messageService, 'chrome-renderer');
-    }
-    return this.offscreenHost;
-  }
-
-  private async applyThemeIfNeeded(host: RenderHost): Promise<void> {
-    if (!this.themeConfig) {
-      return;
-    }
-    if (!this.themeDirty) {
-      return;
-    }
-    await host.send('SET_THEME_CONFIG', { config: this.themeConfig }, 300000);
-    this.themeDirty = false;
-  }
-
-  async setThemeConfig(config: RendererThemeConfig): Promise<void> {
-    this.themeConfig = config;
-    this.themeDirty = true;
-    const host = this.getHost();
-    await this.applyThemeIfNeeded(host);
-  }
-
-  async render(type: string, content: string | object): Promise<RenderResult> {
-    // Generate cache key
-    const inputString = typeof content === 'string' ? content : JSON.stringify(content);
-    const contentKey = inputString;
-    const cacheType = `${type.toUpperCase()}_PNG`;
-    const cacheKey = await this.cache.generateKey(contentKey, cacheType, this.themeConfig);
-
-    // Check cache first
-    const cached = await this.cache.get(cacheKey);
-    if (cached) {
-      return cached as RenderResult;
-    }
-
-    const host = this.getHost();
-    await this.applyThemeIfNeeded(host);
-
-    const result = await host.send<RenderResult>(
-      'RENDER_DIAGRAM',
-      {
-        renderType: type,
-        input: content,
-        themeConfig: this.themeConfig,
-      },
-      300000
-    );
-
-    // Cache the result asynchronously (don't wait)
-    this.cache.set(cacheKey, result, cacheType).catch(() => {});
-
-    return result;
-  }
-
-  cancelPending(): void {
-    // Chrome renderer uses offscreen document which handles its own lifecycle
-    // No cancellation needed at this level
-  }
-
-  getQueueContext(): { cancelled: boolean; id: number } {
-    // Chrome doesn't use queue context - offscreen document handles serialization
-    return { cancelled: false, id: 0 };
-  }
-
-  async ensureIframe(): Promise<void> {
-    // Chrome uses offscreen document instead of iframe
-    // Just ensure the host is ready
-    this.getHost();
-  }
-
-  async cleanup(): Promise<void> {
-    // Offscreen document cleanup handled by Chrome runtime
-    this.offscreenHost = null;
-  }
-}
-
-// ============================================================================
 // Chrome I18n Service
 // Extends BaseI18nService for common message lookup logic
 // ============================================================================
@@ -356,7 +249,7 @@ export class ChromePlatformAPI {
   public readonly resource: ChromeResourceService;
   public readonly message: ChromeMessageService;
   public readonly cache: CacheService;
-  public readonly renderer: ChromeRendererService;
+  public readonly renderer: RendererService;
   public readonly i18n: ChromeI18nService;
 
   constructor() {
@@ -366,7 +259,15 @@ export class ChromePlatformAPI {
     this.resource = new ChromeResourceService();
     this.message = new ChromeMessageService();
     this.cache = cacheService; // Use unified cache service
-    this.renderer = new ChromeRendererService(this.message, this.cache);
+    
+    // Unified renderer service with OffscreenRenderHost
+    // Chrome offscreen document handles serialization internally, so no request queue needed
+    this.renderer = new RendererService({
+      createHost: () => new OffscreenRenderHost(this.message, 'chrome-renderer'),
+      cache: this.cache,
+      useRequestQueue: false,
+    });
+    
     this.i18n = new ChromeI18nService(this.storage, this.resource);
   }
 
