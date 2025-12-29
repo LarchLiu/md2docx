@@ -196,9 +196,6 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     let left = rect.right - panelWidth;
     if (left < 8) left = 8; // Don't go off left edge
     
-    console.log('[Settings Panel] Anchor rect:', rect);
-    console.log('[Settings Panel] Calculated left:', left);
-    
     panel.style.position = 'fixed';
     panel.style.top = `${rect.bottom + 4}px`;
     panel.style.left = `${left}px`;
@@ -206,8 +203,6 @@ export function createSettingsPanel(options: SettingsPanelOptions): SettingsPane
     panel.style.display = 'block';
     panel.style.zIndex = '10000';
     visible = true;
-    
-    console.log('[Settings Panel] Panel styles applied');
 
     // Notify caller to refresh dynamic data (e.g., cache stats)
     options.onShow?.();

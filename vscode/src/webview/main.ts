@@ -474,13 +474,11 @@ window.exportDocx = () => {
 // ============================================================================
 
 function initializeUI(): void {
-  console.log('[VSCode Webview] initializeUI called');
   const toolbarContainer = document.getElementById('vscode-toolbar');
   if (!toolbarContainer) {
     console.warn('[VSCode Webview] Toolbar container not found');
     return;
   }
-  console.log('[VSCode Webview] Toolbar container found');
 
   // Create settings panel first (needs to be in DOM for positioning)
   settingsPanel = createSettingsPanel({
@@ -521,33 +519,25 @@ function initializeUI(): void {
     }
   });
   document.body.appendChild(settingsPanel.getElement());
-  console.log('[VSCode Webview] Settings panel appended to body');
 
   // Create toolbar
   toolbar = createToolbar({
     filename: currentFilename,
     onDownload: () => {
-      console.log('[VSCode Webview] Download clicked');
       handleExportDocx();
     },
     onSettings: () => {
-      console.log('[VSCode Webview] Settings clicked');
       const settingsBtn = toolbarContainer.querySelector('[data-action="settings"]') as HTMLElement;
-      console.log('[VSCode Webview] Settings button:', settingsBtn);
-      console.log('[VSCode Webview] Settings panel:', settingsPanel);
       if (settingsPanel && settingsBtn) {
         if (settingsPanel.isVisible()) {
-          console.log('[VSCode Webview] Hiding settings panel');
           settingsPanel.hide();
         } else {
-          console.log('[VSCode Webview] Showing settings panel');
           settingsPanel.show(settingsBtn);
         }
       }
     }
   });
   toolbarContainer.appendChild(toolbar.getElement());
-  console.log('[VSCode Webview] Toolbar appended');
 }
 
 /**
