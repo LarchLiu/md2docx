@@ -1,15 +1,58 @@
 // Lightweight content script for detecting Markdown files
 // This script runs on all pages to check if they are Markdown files
 
-// Check if this is a markdown file (local or remote)
-function isMarkdownFile(): boolean {
-  const path = document.location.pathname;
+/**
+ * Supported file extensions configuration
+ */
+interface SupportedExtensions {
+  mermaid: boolean;
+  vega: boolean;
+  vegaLite: boolean;
+  dot: boolean;
+  infographic: boolean;
+}
 
-  // First check file extension
-  if (!(path.endsWith('.md') || path.endsWith('.markdown'))) {
-    return false;
+/**
+ * Map file extension to settings key
+ */
+function getExtensionSettingsKey(ext: string): keyof SupportedExtensions | null {
+  const map: Record<string, keyof SupportedExtensions> = {
+    '.mermaid': 'mermaid',
+    '.vega': 'vega',
+    '.vl': 'vegaLite',
+    '.vega-lite': 'vegaLite',    '.gv': 'dot',    '.dot': 'dot',
+    '.infographic': 'infographic',
+  };
+  return map[ext] || null;
+}
+
+/**
+ * Check if file extension requires settings check (non-markdown extensions)
+ */
+function getMatchedExtension(path: string): string | null {
+  const lowerPath = path.toLowerCase();
+  const extensions = [
+    '.md', '.markdown',
+    '.mermaid',
+    '.vega',
+    '.vl', '.vega-lite',
+    '.gv', '.dot',
+    '.infographic',
+    '.html'
+  ];
+  
+  for (const ext of extensions) {
+    if (lowerPath.endsWith(ext)) {
+      return ext;
+    }
   }
+  return null;
+}
 
+/**
+ * Check if this is a processable file based on content type and structure
+ */
+function isProcessableContent(): boolean {
   // Check content type from document if available
   interface DocumentWithContentType {
     contentType?: string;
@@ -28,7 +71,7 @@ function isMarkdownFile(): boolean {
     }
   }
 
-  // For local files or when content type is not available, check if body contains raw markdown
+  // For local files or when content type is not available, check if body contains raw content
   const bodyText = document.body ? document.body.textContent : '';
   const bodyHTML = document.body ? document.body.innerHTML : '';
 
@@ -45,13 +88,14 @@ function isMarkdownFile(): boolean {
     return true;
   }
 
-  // If it's a .md/.markdown file with plain text content, assume it's markdown
+  // If it's a supported file with plain text content, assume it should be processed
   return true;
 }
 
-// Only run the main content script if this is a Markdown file
-if (isMarkdownFile()) {
-  // Dynamically inject the original content script
+/**
+ * Inject the main content script
+ */
+function injectContentScript(): void {
   const url = document.location.href;
   const id = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 
@@ -67,3 +111,64 @@ if (isMarkdownFile()) {
     // Fire and forget.
   });
 }
+
+/**
+ * Main detection and injection logic
+ */
+async function detectAndInject(): Promise<void> {
+  const path = document.location.pathname;
+  const matchedExt = getMatchedExtension(path);
+
+  // Not a supported extension
+  if (!matchedExt) {
+    return;
+  }
+
+  // Check if content is processable
+  if (!isProcessableContent()) {
+    return;
+  }
+
+  // Markdown files are always supported
+  if (matchedExt === '.md' || matchedExt === '.markdown') {
+    injectContentScript();
+    return;
+  }
+
+  // HTML files are never supported (would interfere with normal browsing)
+  if (matchedExt === '.html') {
+    return;
+  }
+
+  // For other extensions, check settings
+  const settingsKey = getExtensionSettingsKey(matchedExt);
+  if (!settingsKey) {
+    return;
+  }
+
+  try {
+    const result = await chrome.storage.local.get(['markdownViewerSettings']);
+    const settings = result.markdownViewerSettings as { supportedExtensions?: SupportedExtensions } | undefined;
+    
+    // Default settings if not configured
+    const defaultExtensions: SupportedExtensions = {
+      mermaid: true,
+      vega: true,
+      vegaLite: true,
+      dot: true,
+      infographic: true,
+    };
+
+    const extensions = settings?.supportedExtensions || defaultExtensions;
+    
+    if (extensions[settingsKey]) {
+      injectContentScript();
+    }
+  } catch (error) {
+    // On error, use default behavior (inject)
+    injectContentScript();
+  }
+}
+
+// Run detection
+detectAndInject();

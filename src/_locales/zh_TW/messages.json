@@ -487,10 +487,6 @@
     "message": "設定已重設",
     "description": "設定重設成功提示"
   },
-  "settings_save_btn": {
-    "message": "儲存設定",
-    "description": "儲存按鈕"
-  },
   "settings_save_failed": {
     "message": "儲存設定失敗",
     "description": "儲存設定失敗提示"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "設定已儲存",
     "description": "儲存設定成功提示"
+  },
+  "settings_support_dot": {
+    "message": "Graphviz DOT 圖表 (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "資訊圖表 (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Mermaid 圖表 (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Vega 圖表 (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Vega-Lite 圖表 (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "支援的格式",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "主題已成功切換，請重新整理頁面檢視變化。",

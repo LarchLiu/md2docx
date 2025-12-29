@@ -487,10 +487,6 @@
     "message": "Ayarlar sıfırlandı",
     "description": "Toast when settings reset succeeds"
   },
-  "settings_save_btn": {
-    "message": "Ayarları kaydet",
-    "description": "Save button"
-  },
   "settings_save_failed": {
     "message": "Ayarlar kaydedilemedi",
     "description": "Toast when saving settings fails"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "Ayarlar kaydedildi",
     "description": "Toast when settings saved"
+  },
+  "settings_support_dot": {
+    "message": "Graphviz DOT diyagramları (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "İnfografikler (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Mermaid diyagramları (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Vega grafikleri (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Vega-Lite grafikleri (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "Desteklenen Formatlar",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "Tema başarıyla değiştirildi. Değişiklikleri görmek için lütfen sayfayı yenileyin.",

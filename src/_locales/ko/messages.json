@@ -487,10 +487,6 @@
     "message": "설정을 재설정했습니다",
     "description": "재설정 성공 알림"
   },
-  "settings_save_btn": {
-    "message": "설정 저장",
-    "description": "저장 버튼"
-  },
   "settings_save_failed": {
     "message": "설정을 저장하지 못했습니다",
     "description": "저장 실패 알림"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "설정을 저장했습니다",
     "description": "저장 성공 알림"
+  },
+  "settings_support_dot": {
+    "message": "Graphviz DOT 다이어그램 (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "인포그래픽 (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Mermaid 다이어그램 (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Vega 차트 (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Vega-Lite 차트 (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "지원 형식",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "테마가 성공적으로 변경되었습니다. 변경 사항을 보려면 페이지를 새로 고침하세요.",

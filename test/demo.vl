@@ -1,0 +1,22 @@
+{
+  "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+  "description": "A simple bar chart with embedded data.",
+  "width": 400,
+  "height": 200,
+  "data": {
+    "values": [
+      {"month": "Jan", "sales": 100},
+      {"month": "Feb", "sales": 150},
+      {"month": "Mar", "sales": 120},
+      {"month": "Apr", "sales": 180},
+      {"month": "May", "sales": 200},
+      {"month": "Jun", "sales": 160}
+    ]
+  },
+  "mark": "bar",
+  "encoding": {
+    "x": {"field": "month", "type": "nominal", "axis": {"labelAngle": 0}},
+    "y": {"field": "sales", "type": "quantitative"},
+    "color": {"value": "#4c78a8"}
+  }
+}

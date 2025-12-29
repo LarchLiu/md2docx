@@ -171,6 +171,44 @@
         </div>
 
         <div class="info-section">
+          <h3 data-i18n="settings_supported_formats_title"></h3>
+          <div style="margin: 10px 0;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="support-mermaid">
+              <span data-i18n="settings_support_mermaid"></span>
+            </label>
+          </div>
+
+          <div style="margin: 10px 0;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="support-vega">
+              <span data-i18n="settings_support_vega"></span>
+            </label>
+          </div>
+
+          <div style="margin: 10px 0;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="support-vega-lite">
+              <span data-i18n="settings_support_vega_lite"></span>
+            </label>
+          </div>
+
+          <div style="margin: 10px 0;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="support-dot">
+              <span data-i18n="settings_support_dot"></span>
+            </label>
+          </div>
+
+          <div style="margin: 10px 0;">
+            <label class="checkbox-label">
+              <input type="checkbox" id="support-infographic">
+              <span data-i18n="settings_support_infographic"></span>
+            </label>
+          </div>
+        </div>
+
+        <div class="info-section">
           <h3 data-i18n="settings_general_title"></h3>
           <div style="margin: 10px 0;">
             <label class="checkbox-label">
@@ -182,12 +220,14 @@
 
           <div style="margin: 10px 0;">
             <label for="max-cache-items" data-i18n="settings_max_cache_label"></label>
-            <input type="number" id="max-cache-items" min="100" max="5000" step="100">
-          </div>
-
-          <div style="margin: 15px 0; text-align: center;">
-            <button class="btn" id="save-settings" data-i18n="settings_save_btn"></button>
-            <button class="btn" id="reset-settings" data-i18n="settings_reset_btn"></button>
+            <select id="max-cache-items">
+              <option value="100">100</option>
+              <option value="200">200</option>
+              <option value="500">500</option>
+              <option value="1000">1000</option>
+              <option value="2000">2000</option>
+              <option value="5000">5000</option>
+            </select>
           </div>
         </div>
       </div>

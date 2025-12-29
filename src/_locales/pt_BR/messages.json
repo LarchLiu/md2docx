@@ -487,10 +487,6 @@
     "message": "Configurações redefinidas",
     "description": "Toast when settings reset succeeds"
   },
-  "settings_save_btn": {
-    "message": "Salvar configurações",
-    "description": "Save button"
-  },
   "settings_save_failed": {
     "message": "Falha ao salvar configurações",
     "description": "Toast when saving settings fails"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "Configurações salvas",
     "description": "Toast when settings saved"
+  },
+  "settings_support_dot": {
+    "message": "Diagramas Graphviz DOT (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "Infográficos (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Diagramas Mermaid (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Gráficos Vega (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Gráficos Vega-Lite (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "Formatos suportados",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "Tema alterado com sucesso. Por favor, recarregue a página para ver as mudanças.",

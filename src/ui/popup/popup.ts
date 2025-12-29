@@ -117,17 +117,6 @@ class PopupManager {
     if (clearHistoryBtn) {
       clearHistoryBtn.addEventListener('click', () => this.historyTab.clearHistory());
     }
-
-    // Settings tab buttons
-    const saveBtn = document.getElementById('save-settings');
-    const resetBtn = document.getElementById('reset-settings');
-    
-    if (saveBtn) {
-      saveBtn.addEventListener('click', () => this.settingsTab.saveSettings());
-    }
-    if (resetBtn) {
-      resetBtn.addEventListener('click', () => this.settingsTab.resetSettings());
-    }
   }
 
   private switchTab(tabName: TabName): void {

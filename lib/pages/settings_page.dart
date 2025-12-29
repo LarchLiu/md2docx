@@ -126,6 +126,60 @@ class _SettingsPageState extends State<SettingsPage> {
             },
           ),
           const Divider(),
+
+          // Supported file formats section
+          _SectionHeader(title: localization.t('settings_supported_formats_title')),
+          _SwitchTile(
+            title: localization.t('settings_support_mermaid'),
+            iconData: Icons.account_tree_outlined,
+            value: settingsService.supportMermaid,
+            onChanged: (value) {
+              setState(() {
+                settingsService.supportMermaid = value;
+              });
+            },
+          ),
+          _SwitchTile(
+            title: localization.t('settings_support_vega'),
+            iconData: Icons.bar_chart_outlined,
+            value: settingsService.supportVega,
+            onChanged: (value) {
+              setState(() {
+                settingsService.supportVega = value;
+              });
+            },
+          ),
+          _SwitchTile(
+            title: localization.t('settings_support_vega_lite'),
+            iconData: Icons.show_chart_outlined,
+            value: settingsService.supportVegaLite,
+            onChanged: (value) {
+              setState(() {
+                settingsService.supportVegaLite = value;
+              });
+            },
+          ),
+          _SwitchTile(
+            title: localization.t('settings_support_dot'),
+            iconData: Icons.hub_outlined,
+            value: settingsService.supportDot,
+            onChanged: (value) {
+              setState(() {
+                settingsService.supportDot = value;
+              });
+            },
+          ),
+          _SwitchTile(
+            title: localization.t('settings_support_infographic'),
+            iconData: Icons.info_outline,
+            value: settingsService.supportInfographic,
+            onChanged: (value) {
+              setState(() {
+                settingsService.supportInfographic = value;
+              });
+            },
+          ),
+          const Divider(),
           GFListTile(
             avatar: GFAvatar(
               backgroundColor: Theme.of(context).colorScheme.primaryContainer,
@@ -503,15 +557,17 @@ class _FontSizeTile extends StatelessWidget {
 
 class _SwitchTile extends StatelessWidget {
   final String title;
-  final String subtitle;
+  final String? subtitle;
   final bool value;
   final void Function(bool) onChanged;
+  final IconData iconData;
 
   const _SwitchTile({
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     required this.value,
     required this.onChanged,
+    this.iconData = Icons.insert_page_break_outlined,
   });
 
   @override
@@ -520,7 +576,7 @@ class _SwitchTile extends StatelessWidget {
       avatar: GFAvatar(
         backgroundColor: Theme.of(context).colorScheme.primaryContainer,
         child: Icon(
-          Icons.insert_page_break_outlined,
+          iconData,
           color: Theme.of(context).colorScheme.onPrimaryContainer,
         ),
       ),

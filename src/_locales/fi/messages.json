@@ -487,10 +487,6 @@
     "message": "Asetukset palautettu",
     "description": "Toast when settings reset succeeds"
   },
-  "settings_save_btn": {
-    "message": "Tallenna asetukset",
-    "description": "Save button"
-  },
   "settings_save_failed": {
     "message": "Asetusten tallentaminen epäonnistui",
     "description": "Toast when saving settings fails"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "Asetukset tallennettu",
     "description": "Toast when settings saved"
+  },
+  "settings_support_dot": {
+    "message": "Graphviz DOT -kaaviot (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "Infografiikat (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Mermaid-kaaviot (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Vega-kaaviot (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Vega-Lite-kaaviot (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "Tuetut muodot",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "Teema vaihdettu onnistuneesti. Päivitä sivu nähdäksesi muutokset.",

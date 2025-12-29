@@ -487,10 +487,6 @@
     "message": "Настройки сброшены",
     "description": "Уведомление об успехе"
   },
-  "settings_save_btn": {
-    "message": "Сохранить настройки",
-    "description": "Кнопка сохранения"
-  },
   "settings_save_failed": {
     "message": "Не удалось сохранить настройки",
     "description": "Уведомление об ошибке"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "Настройки сохранены",
     "description": "Уведомление об успехе"
+  },
+  "settings_support_dot": {
+    "message": "Диаграммы Graphviz DOT (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "Инфографика (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Диаграммы Mermaid (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Графики Vega (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Графики Vega-Lite (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "Поддерживаемые форматы",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "Тема успешно изменена. Пожалуйста, перезагрузите страницу, чтобы увидеть изменения.",

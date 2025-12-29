@@ -47,12 +47,24 @@ interface ThemeRegistry {
 }
 
 /**
+ * Supported file extensions
+ */
+interface SupportedExtensions {
+  mermaid: boolean;
+  vega: boolean;
+  vegaLite: boolean;
+  dot: boolean;
+  infographic: boolean;
+}
+
+/**
  * User settings structure
  */
 interface Settings {
   maxCacheItems: number;
   preferredLocale: string;
   docxHrAsPageBreak: boolean;
+  supportedExtensions?: SupportedExtensions;
 }
 
 /**
@@ -90,6 +102,13 @@ export function createSettingsTabManager({
     maxCacheItems: 1000,
     preferredLocale: DEFAULT_SETTING_LOCALE,
     docxHrAsPageBreak: true,
+    supportedExtensions: {
+      mermaid: true,
+      vega: true,
+      vegaLite: true,
+      dot: true,
+      infographic: true,
+    }
   };
   let currentTheme = 'default';
   let themes: ThemeDefinition[] = [];
@@ -118,9 +137,21 @@ export function createSettingsTabManager({
    */
   function loadSettingsUI(): void {
     // Max cache items
-    const maxCacheItemsEl = document.getElementById('max-cache-items') as HTMLInputElement | null;
+    const maxCacheItemsEl = document.getElementById('max-cache-items') as HTMLSelectElement | null;
     if (maxCacheItemsEl) {
       maxCacheItemsEl.value = String(settings.maxCacheItems);
+      
+      // Add change listener for immediate save
+      if (!maxCacheItemsEl.dataset.listenerAdded) {
+        maxCacheItemsEl.dataset.listenerAdded = 'true';
+        maxCacheItemsEl.addEventListener('change', async () => {
+          const value = parseInt(maxCacheItemsEl.value, 10);
+          if (!Number.isNaN(value)) {
+            settings.maxCacheItems = value;
+            await saveSettingsToStorage();
+          }
+        });
+      }
     }
 
     // Locale selector
@@ -171,6 +202,91 @@ export function createSettingsTabManager({
     const docxHrPageBreakEl = document.getElementById('docx-hr-page-break') as HTMLInputElement | null;
     if (docxHrPageBreakEl) {
       docxHrPageBreakEl.checked = settings.docxHrAsPageBreak !== false;
+      
+      // Add change listener for immediate save
+      if (!docxHrPageBreakEl.dataset.listenerAdded) {
+        docxHrPageBreakEl.dataset.listenerAdded = 'true';
+        docxHrPageBreakEl.addEventListener('change', async () => {
+          settings.docxHrAsPageBreak = docxHrPageBreakEl.checked;
+          await saveSettingsToStorage();
+        });
+      }
+    }
+
+    // Load supported file extensions checkboxes
+    const ext = settings.supportedExtensions || {
+      mermaid: true,
+      vega: true,
+      vegaLite: true,
+      dot: true,
+      infographic: true,
+    };
+
+    const supportMermaidEl = document.getElementById('support-mermaid') as HTMLInputElement | null;
+    if (supportMermaidEl) {
+      supportMermaidEl.checked = ext.mermaid;
+      addExtensionChangeListener(supportMermaidEl, 'mermaid');
+    }
+
+    const supportVegaEl = document.getElementById('support-vega') as HTMLInputElement | null;
+    if (supportVegaEl) {
+      supportVegaEl.checked = ext.vega;
+      addExtensionChangeListener(supportVegaEl, 'vega');
+    }
+
+    const supportVegaLiteEl = document.getElementById('support-vega-lite') as HTMLInputElement | null;
+    if (supportVegaLiteEl) {
+      supportVegaLiteEl.checked = ext.vegaLite;
+      addExtensionChangeListener(supportVegaLiteEl, 'vegaLite');
+    }
+
+    const supportDotEl = document.getElementById('support-dot') as HTMLInputElement | null;
+    if (supportDotEl) {
+      supportDotEl.checked = ext.dot;
+      addExtensionChangeListener(supportDotEl, 'dot');
+    }
+
+    const supportInfographicEl = document.getElementById('support-infographic') as HTMLInputElement | null;
+    if (supportInfographicEl) {
+      supportInfographicEl.checked = ext.infographic;
+      addExtensionChangeListener(supportInfographicEl, 'infographic');
+    }
+  }
+
+  /**
+   * Add change listener for extension checkbox
+   */
+  function addExtensionChangeListener(el: HTMLInputElement, key: keyof SupportedExtensions): void {
+    if (!el.dataset.listenerAdded) {
+      el.dataset.listenerAdded = 'true';
+      el.addEventListener('change', async () => {
+        if (!settings.supportedExtensions) {
+          settings.supportedExtensions = {
+            mermaid: true,
+            vega: true,
+            vegaLite: true,
+            dot: true,
+            infographic: true,
+          };
+        }
+        settings.supportedExtensions[key] = el.checked;
+        await saveSettingsToStorage();
+      });
+    }
+  }
+
+  /**
+   * Save settings to storage (internal helper)
+   */
+  async function saveSettingsToStorage(): Promise<void> {
+    try {
+      await chrome.storage.local.set({
+        markdownViewerSettings: settings
+      });
+      showMessage(translate('settings_save_success'), 'success');
+    } catch (error) {
+      console.error('Failed to save settings:', error);
+      showMessage(translate('settings_save_failed'), 'error');
     }
   }
 
@@ -342,6 +458,21 @@ export function createSettingsTabManager({
         settings.docxHrAsPageBreak = Boolean(docxHrPageBreakEl.checked);
       }
 
+      // Load supported file extensions from checkboxes
+      const supportMermaidEl = document.getElementById('support-mermaid') as HTMLInputElement | null;
+      const supportVegaEl = document.getElementById('support-vega') as HTMLInputElement | null;
+      const supportVegaLiteEl = document.getElementById('support-vega-lite') as HTMLInputElement | null;
+      const supportDotEl = document.getElementById('support-dot') as HTMLInputElement | null;
+      const supportInfographicEl = document.getElementById('support-infographic') as HTMLInputElement | null;
+
+      settings.supportedExtensions = {
+        mermaid: supportMermaidEl?.checked ?? true,
+        vega: supportVegaEl?.checked ?? true,
+        vegaLite: supportVegaLiteEl?.checked ?? true,
+        dot: supportDotEl?.checked ?? true,
+        infographic: supportInfographicEl?.checked ?? true,
+      };
+
       await chrome.storage.local.set({
         markdownViewerSettings: settings
       });
@@ -376,6 +507,13 @@ export function createSettingsTabManager({
         maxCacheItems: 1000,
         preferredLocale: DEFAULT_SETTING_LOCALE,
         docxHrAsPageBreak: true,
+        supportedExtensions: {
+          mermaid: true,
+          vega: true,
+          vegaLite: true,
+          dot: true,
+          infographic: true,
+        }
       };
 
       await chrome.storage.local.set({

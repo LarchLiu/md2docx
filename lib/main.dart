@@ -49,6 +49,42 @@ class MarkdownViewerApp extends StatelessWidget {
   }
 }
 
+/// Get file type from filename extension
+String _getFileType(String filename) {
+  final ext = filename.toLowerCase().split('.').last;
+  switch (ext) {
+    case 'mermaid':
+      return 'mermaid';
+    case 'vega':
+      return 'vega';
+    case 'vl':
+    case 'vega-lite':
+      return 'vega-lite';
+    case 'gv':
+    case 'dot':
+      return 'dot';
+    case 'infographic':
+      return 'infographic';
+    case 'md':
+    case 'markdown':
+    default:
+      return 'markdown';
+  }
+}
+
+/// Wrap non-markdown file content in markdown code block format
+String _wrapFileContent(String content, String filename) {
+  final fileType = _getFileType(filename);
+  
+  // If already markdown, return as-is
+  if (fileType == 'markdown') {
+    return content;
+  }
+  
+  // Wrap the content in appropriate code block
+  return '```$fileType\n$content\n```';
+}
+
 class MarkdownViewerHome extends StatefulWidget {
   const MarkdownViewerHome({super.key});
 
@@ -765,7 +801,7 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
     try {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
-        allowedExtensions: ['md', 'markdown'],
+        allowedExtensions: settingsService.allowedExtensions,
       );
 
       if (result != null && result.files.isNotEmpty) {
@@ -804,7 +840,9 @@ class _MarkdownViewerHomeState extends State<MarkdownViewerHome> {
   }
 
   Future<void> _loadMarkdownIntoWebView(String content, String filename) async {
-    final escaped = _escapeJs(content);
+    // Wrap non-markdown files in code blocks
+    final wrappedContent = _wrapFileContent(content, filename);
+    final escaped = _escapeJs(wrappedContent);
     try {
       // Get theme data and pass it along with content to avoid race condition
       final themeData = await themeAssetService.getCompleteThemeData(_currentTheme);

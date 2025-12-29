@@ -27,8 +27,20 @@
       "matches": [
         "file://*/*.md",
         "file://*/*.markdown",
+        "file://*/*.mermaid",
+        "file://*/*.vega",
+        "file://*/*.vl",
+        "file://*/*.vega-lite",
+        "file://*/*.gv",
+        "file://*/*.infographic",
         "*://*/*.md",
-        "*://*/*.markdown"
+        "*://*/*.markdown",
+        "*://*/*.mermaid",
+        "*://*/*.vega",
+        "*://*/*.vl",
+        "*://*/*.vega-lite",
+        "*://*/*.gv",
+        "*://*/*.infographic"
       ],
       "js": [
         "core/content-detector.js"

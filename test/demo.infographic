@@ -1,0 +1,13 @@
+infographic list-grid-badge-card
+data
+  title Project Statistics
+  desc Overview of key metrics
+  items
+    - label Total Users
+      desc Active monthly users
+    - label Downloads
+      desc Total app downloads
+    - label Rating
+      desc Average user rating
+    - label Support
+      desc 24/7 availability

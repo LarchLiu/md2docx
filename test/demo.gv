@@ -1,0 +1,13 @@
+digraph G {
+    rankdir=LR;
+    node [shape=box, style=filled, fillcolor=lightblue];
+    
+    Start -> Parse;
+    Parse -> Validate;
+    Validate -> Process;
+    Process -> Render;
+    Render -> End;
+    
+    Validate -> Error [style=dashed, color=red];
+    Error -> Parse [style=dashed, color=red];
+}

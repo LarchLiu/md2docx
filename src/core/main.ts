@@ -7,6 +7,7 @@ import Localization, { DEFAULT_SETTING_LOCALE } from '../utils/localization';
 import themeManager from '../utils/theme-manager';
 import { loadAndApplyTheme } from '../utils/theme-to-css';
 import { platform } from '../platform/chrome/index';
+import { wrapFileContent } from '../utils/file-wrapper';
 
 import type { PluginRenderer, RendererThemeConfig } from '../types/index';
 
@@ -109,7 +110,13 @@ async function initializeMain(): Promise<void> {
   const { generateTOC, setupTocToggle, updateActiveTocItem, setupResponsiveToc } = tocManager;
 
   // Get the raw markdown content
-  const rawMarkdown = document.body.textContent || '';
+  const rawContent = document.body.textContent || '';
+  
+  // Get the current document URL to determine file type
+  const currentUrl = getCurrentDocumentUrl();
+  
+  // Wrap non-markdown file content (e.g., mermaid, vega) in markdown format
+  const rawMarkdown = wrapFileContent(rawContent, currentUrl);
 
   // Get saved state early to prevent any flashing
   const initialState = await getFileState();

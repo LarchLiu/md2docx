@@ -487,10 +487,6 @@
     "message": "Đã đặt lại cài đặt",
     "description": "Toast when settings reset succeeds"
   },
-  "settings_save_btn": {
-    "message": "Lưu cài đặt",
-    "description": "Save button"
-  },
   "settings_save_failed": {
     "message": "Lưu cài đặt thất bại",
     "description": "Toast when saving settings fails"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "Đã lưu cài đặt",
     "description": "Toast when settings saved"
+  },
+  "settings_support_dot": {
+    "message": "Biểu đồ Graphviz DOT (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "Infographic (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Biểu đồ Mermaid (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Biểu đồ Vega (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Biểu đồ Vega-Lite (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "Định dạng được hỗ trợ",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "Đã thay đổi giao diện thành công. Vui lòng tải lại trang để xem thay đổi.",

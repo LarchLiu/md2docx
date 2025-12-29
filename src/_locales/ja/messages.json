@@ -487,10 +487,6 @@
     "message": "設定をリセットしました",
     "description": "リセット成功の通知"
   },
-  "settings_save_btn": {
-    "message": "設定を保存",
-    "description": "保存ボタン"
-  },
   "settings_save_failed": {
     "message": "設定を保存できませんでした",
     "description": "保存失敗の通知"
@@ -498,6 +494,30 @@
   "settings_save_success": {
     "message": "設定を保存しました",
     "description": "保存成功の通知"
+  },
+  "settings_support_dot": {
+    "message": "Graphviz DOT図 (.gv)",
+    "description": "Checkbox label for Graphviz DOT format support"
+  },
+  "settings_support_infographic": {
+    "message": "インフォグラフィック (.infographic)",
+    "description": "Checkbox label for Infographic format support"
+  },
+  "settings_support_mermaid": {
+    "message": "Mermaid図 (.mermaid)",
+    "description": "Checkbox label for Mermaid format support"
+  },
+  "settings_support_vega": {
+    "message": "Vegaチャート (.vega)",
+    "description": "Checkbox label for Vega format support"
+  },
+  "settings_support_vega_lite": {
+    "message": "Vega-Liteチャート (.vl, .vega-lite)",
+    "description": "Checkbox label for Vega-Lite format support"
+  },
+  "settings_supported_formats_title": {
+    "message": "対応フォーマット",
+    "description": "Title for supported file formats section in settings"
   },
   "settings_theme_changed": {
     "message": "テーマが正常に変更されました。変更を確認するにはページを再読み込みしてください。",
