@@ -17,6 +17,11 @@ import { visit } from 'unist-util-visit';
 import { registerRemarkPlugins } from '../plugins/index';
 import { createPlaceholderElement } from '../plugins/plugin-content-utils';
 import { generateContentHash, hashCode } from '../utils/hash';
+import {
+  splitMarkdownIntoBlocksWithLines as splitBlocks,
+  splitMarkdownIntoBlocks as splitBlocksSimple,
+  type BlockWithLine
+} from './markdown-block-splitter';
 import type {
   TranslateFunction,
   TaskStatus,
@@ -69,13 +74,8 @@ export function normalizeMathBlocks(markdown: string): string {
   });
 }
 
-/**
- * Block with source line information
- */
-export interface BlockWithLine {
-  content: string;
-  startLine: number;  // 0-based line number in source
-}
+// Re-export BlockWithLine for backward compatibility
+export type { BlockWithLine };
 
 /**
  * Split markdown into semantic blocks (paragraphs, code blocks, tables, etc.)
@@ -84,7 +84,7 @@ export interface BlockWithLine {
  * @returns Array of markdown blocks
  */
 export function splitMarkdownIntoBlocks(markdown: string): string[] {
-  return splitMarkdownIntoBlocksWithLines(markdown).map(b => b.content);
+  return splitBlocksSimple(markdown);
 }
 
 /**
@@ -94,161 +94,7 @@ export function splitMarkdownIntoBlocks(markdown: string): string[] {
  * @returns Array of blocks with line info
  */
 export function splitMarkdownIntoBlocksWithLines(markdown: string): BlockWithLine[] {
-  const lines = markdown.split('\n');
-  const blocks: BlockWithLine[] = [];
-
-  let currentBlock: string[] = [];
-  let blockStartLine = 0;
-  let codeBlockFence = '';
-  let inMathBlock = false;
-  let inTable = false;
-  let inBlockquote = false;
-  let inIndentedCode = false;
-  let inFrontMatter = false;
-  let listIndent = -1;
-
-  const flushBlock = (nextLineIndex: number) => {
-    if (currentBlock.length > 0) {
-      blocks.push({
-        content: currentBlock.join('\n'),
-        startLine: blockStartLine
-      });
-      currentBlock = [];
-      blockStartLine = nextLineIndex;
-    }
-  };
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const trimmedLine = line.trim();
-
-    // Track front matter (--- at start of file)
-    if (i === 0 && trimmedLine === '---') {
-      inFrontMatter = true;
-    } else if (inFrontMatter && trimmedLine === '---') {
-      inFrontMatter = false;
-      currentBlock.push(line);
-      flushBlock(i + 1); // Front matter is its own block
-      continue;
-    }
-
-    // Track code blocks (fenced)
-    const backtickMatch = trimmedLine.match(/^(`{3,})/);
-    const tildeMatch = trimmedLine.match(/^(~{3,})/);
-    const fenceMatch = backtickMatch || tildeMatch;
-    
-    if (fenceMatch) {
-      const fence = fenceMatch[1];
-      const fenceChar = fence[0];
-      
-      if (!codeBlockFence) {
-        codeBlockFence = fence;
-      } else if (fenceChar === codeBlockFence[0] && fence.length >= codeBlockFence.length) {
-        codeBlockFence = '';
-        currentBlock.push(line);
-        flushBlock(i + 1); // Code block complete
-        continue;
-      }
-    }
-
-    const inCodeBlock = codeBlockFence !== '';
-
-    // Track math blocks
-    if (trimmedLine === '$$') {
-      if (inMathBlock) {
-        inMathBlock = false;
-        currentBlock.push(line);
-        flushBlock(i + 1); // Math block complete
-        continue;
-      } else {
-        inMathBlock = true;
-      }
-    }
-
-    // Track tables
-    if (trimmedLine.startsWith('|')) {
-      inTable = true;
-    } else if (inTable && trimmedLine === '') {
-      inTable = false;
-      flushBlock(i); // Table complete (before empty line)
-    }
-
-    // Track blockquotes
-    if (trimmedLine.startsWith('>')) {
-      inBlockquote = true;
-    } else if (inBlockquote && trimmedLine === '') {
-      const nextLine = lines[i + 1];
-      if (!nextLine || !nextLine.trim().startsWith('>')) {
-        inBlockquote = false;
-        flushBlock(i); // Blockquote complete
-      }
-    } else if (inBlockquote && !trimmedLine.startsWith('>')) {
-      inBlockquote = false;
-      flushBlock(i); // Blockquote complete
-    }
-
-    // Track indented code blocks
-    if (!inCodeBlock && !inMathBlock && listIndent < 0) {
-      const isIndentedCode = line.startsWith('    ') || line.startsWith('\t');
-      if (isIndentedCode && trimmedLine !== '') {
-        inIndentedCode = true;
-      } else if (inIndentedCode && trimmedLine === '') {
-        const nextLine = lines[i + 1];
-        if (!nextLine || (!nextLine.startsWith('    ') && !nextLine.startsWith('\t'))) {
-          inIndentedCode = false;
-          flushBlock(i); // Indented code complete
-        }
-      } else if (inIndentedCode && !isIndentedCode) {
-        inIndentedCode = false;
-        flushBlock(i); // Indented code complete
-      }
-    }
-
-    // Track lists (only outside code blocks and math blocks)
-    if (!inCodeBlock && !inMathBlock && !inFrontMatter) {
-      const listMatch = line.match(/^(\s*)(?:[-*+]|\d+\.)\s/);
-      if (listMatch) {
-        const indent = listMatch[1]?.length ?? 0;
-        if (listIndent < 0) {
-          listIndent = indent;
-        } else if (indent <= listIndent) {
-          listIndent = indent;
-        }
-      } else if (listIndent >= 0 && trimmedLine === '') {
-        const nextLine = lines[i + 1];
-        if (!nextLine || !nextLine.match(/^(\s*)(?:[-*+]|\d+\.)\s/)) {
-          listIndent = -1;
-          currentBlock.push(line);
-          flushBlock(i + 1); // List complete
-          continue;
-        }
-      } else if (listIndent >= 0 && !trimmedLine.startsWith(' '.repeat(listIndent))) {
-        listIndent = -1;
-        flushBlock(i); // List complete
-      }
-    }
-
-    currentBlock.push(line);
-
-    // Check for block boundary (only when not inside special blocks)
-    const inSpecialBlock = inCodeBlock || inMathBlock || inTable || inBlockquote || inIndentedCode || inFrontMatter || listIndent >= 0;
-    
-    if (!inSpecialBlock) {
-      // Heading is its own block
-      if (trimmedLine.startsWith('#')) {
-        flushBlock(i + 1);
-        continue;
-      }
-      // Empty line ends paragraph
-      if (trimmedLine === '' && currentBlock.length > 1) {
-        flushBlock(i); // Before empty line
-        continue;
-      }
-    }
-  }
-
-  flushBlock(lines.length);
-  return blocks;
+  return splitBlocks(markdown);
 }
 
 /**

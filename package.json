@@ -6,7 +6,6 @@
   "type": "module",
   "main": "src/content.js",
   "scripts": {
-    "postinstall": "patch-package",
     "build:chrome": "node scripts/build.js",
     "build:mobile": "node scripts/build-mobile.js",
     "build:vscode": "node scripts/build-vscode.js",
@@ -53,7 +52,7 @@
     "url": "https://github.com/xicilion/markdown-viewer-extension/issues"
   },
   "dependencies": {
-    "@antv/infographic": "^0.2.1",
+    "@antv/infographic": "^0.2.2",
     "@viz-js/viz": "^3.24.0",
     "buffer": "^6.0.3",
     "d3-array": "^3.2.4",
@@ -87,7 +86,6 @@
     "@types/node": "^25.0.3",
     "@types/vscode": "^1.85.0",
     "@vscode/vsce": "^2.22.0",
-    "patch-package": "^8.0.1",
     "typescript": "^5.9.3"
   },
   "publisher": "xicilion",
