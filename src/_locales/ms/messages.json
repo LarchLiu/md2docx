@@ -163,6 +163,10 @@
     "message": "Buang semua fail terkini dari senarai?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "Tutup",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "Padam",
     "description": "Delete button text"

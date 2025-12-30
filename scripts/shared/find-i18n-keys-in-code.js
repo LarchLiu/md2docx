@@ -1,6 +1,22 @@
 import fs from 'fs';
 import path from 'path';
 
+// Base directory for the project
+const ROOT_DIR = path.join(import.meta.dirname, '../..');
+
+// Directories to scan for i18n keys
+const SCAN_DIRS = {
+  // Shared core code
+  src: path.join(ROOT_DIR, 'src'),
+  // Platform-specific TypeScript code
+  chrome: path.join(ROOT_DIR, 'chrome/src'),
+  chromeRoot: path.join(ROOT_DIR, 'chrome'), // For manifest.json
+  vscode: path.join(ROOT_DIR, 'vscode/src'),
+  mobileSrc: path.join(ROOT_DIR, 'mobile/src'),
+  // Flutter/Dart code
+  flutter: path.join(ROOT_DIR, 'mobile/lib'),
+};
+
 /**
  * Recursively scans code for i18n key usages.
  *
@@ -16,7 +32,7 @@ import path from 'path';
  * - Intentionally does NOT use full-text search fallbacks.
  * - Only extracts static string literal keys.
  */
-export function findI18nKeysInCode({ srcDir, flutterDir }) {
+export function findI18nKeysInCode() {
   const keysUsedInCode = new Set();
   const keysUsedInHTML = new Set();
   const keysUsedInDart = new Set();
@@ -129,12 +145,17 @@ export function findI18nKeysInCode({ srcDir, flutterDir }) {
     }
   }
 
-  if (srcDir) {
-    scanDirectory(srcDir, ['.js', '.ts', '.html']);
+  // Scan TypeScript/JavaScript directories
+  const tsDirs = [SCAN_DIRS.src, SCAN_DIRS.chrome, SCAN_DIRS.chromeRoot, SCAN_DIRS.vscode, SCAN_DIRS.mobileSrc];
+  for (const dir of tsDirs) {
+    if (fs.existsSync(dir)) {
+      scanDirectory(dir, ['.js', '.ts', '.html']);
+    }
   }
 
-  if (flutterDir && fs.existsSync(flutterDir)) {
-    scanDirectory(flutterDir, ['.dart']);
+  // Scan Flutter/Dart directory
+  if (fs.existsSync(SCAN_DIRS.flutter)) {
+    scanDirectory(SCAN_DIRS.flutter, ['.dart']);
   }
 
   const allUsedKeys = new Set([...keysUsedInCode, ...keysUsedInHTML, ...keysUsedInDart]);

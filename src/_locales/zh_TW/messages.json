@@ -163,6 +163,10 @@
     "message": "確定要清除所有最近開啟的檔案記錄嗎？",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "關閉",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "刪除",
     "description": "Delete button text"

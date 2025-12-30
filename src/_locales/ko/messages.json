@@ -163,6 +163,10 @@
     "message": "모든 최근 파일을 목록에서 제거하시겠습니까?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "닫기",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "삭제",
     "description": "Delete button text"

@@ -7,7 +7,7 @@
  * Shares core rendering logic with Chrome and Mobile platforms.
  */
 
-import { platform, vscodeBridge } from '../../../src/platform/vscode/api-impl';
+import { platform, vscodeBridge } from './api-impl';
 import { renderMarkdownDocument } from '../../../src/core/viewer/viewer-controller';
 import { AsyncTaskManager } from '../../../src/core/markdown-processor';
 // Shared modules (same as Chrome/Mobile)

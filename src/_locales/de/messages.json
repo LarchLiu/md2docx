@@ -163,6 +163,10 @@
     "message": "Alle zuletzt geöffneten Dateien aus der Liste entfernen?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "Schließen",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "Löschen",
     "description": "Delete button text"

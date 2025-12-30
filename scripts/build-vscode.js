@@ -49,7 +49,7 @@ async function buildExtensionHost() {
   console.log('📦 Building extension host...');
 
   await build({
-    entryPoints: ['vscode/src/extension.ts'],
+    entryPoints: ['vscode/src/host/extension.ts'],
     bundle: true,
     outfile: 'dist/vscode/extension.js',
     format: 'cjs', // VS Code extensions use CommonJS
@@ -101,7 +101,7 @@ async function buildWebview() {
   console.log('📦 Building iframe-render-worker bundle...');
   await build({
     entryPoints: {
-      'iframe-render-worker': 'src/platform/mobile/iframe-render-worker.ts'
+      'iframe-render-worker': 'mobile/src/webview/iframe-render-worker.ts'
     },
     bundle: true,
     outdir: 'dist/vscode/webview',

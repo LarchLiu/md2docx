@@ -163,6 +163,10 @@
     "message": "Xóa tất cả tệp gần đây khỏi danh sách?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "Đóng",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "Delete",
     "description": "Delete button text"

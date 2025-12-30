@@ -26,7 +26,7 @@ pubspec.lock
 # Build output
 dist/
 dist.*
-/build/
+/mobile/build/
 
 # Logs
 *.log
@@ -45,22 +45,22 @@ dist.*
 **/doc/api/
 
 # iOS
-/ios/Flutter/
-/ios/Pods/
-/ios/Podfile.lock
+/mobile/ios/Flutter/
+/mobile/ios/Pods/
+/mobile/ios/Podfile.lock
 **/ios/Flutter/.last_build_id
 
 # macOS
-/macos/Flutter/
-/macos/Pods/
-/macos/Podfile.lock
+/mobile/macos/Flutter/
+/mobile/macos/Pods/
+/mobile/macos/Podfile.lock
 
 # Android
-/android/.gradle/
-/android/app/build/
-/android/app/debug
-/android/app/profile
-/android/app/release
+/mobile/android/.gradle/
+/mobile/android/app/build/
+/mobile/android/app/debug
+/mobile/android/app/profile
+/mobile/android/app/release
 
 # Symbolication related
 app.*.symbols

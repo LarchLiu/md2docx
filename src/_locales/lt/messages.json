@@ -163,6 +163,10 @@
     "message": "Pašalinti visus naujausius failus iš sąrašo?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "Uždaryti",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "Ištrinti",
     "description": "Delete button text"

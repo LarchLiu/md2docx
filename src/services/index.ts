@@ -14,3 +14,6 @@ export type { DownloadOptions } from './file-service';
 
 export { RendererService } from './renderer-service';
 export type { QueueContext, RendererServiceOptions, RenderHostFactory } from './renderer-service';
+
+export { BaseI18nService, DEFAULT_SETTING_LOCALE, FALLBACK_LOCALE } from './base-i18n-service';
+export type { LocaleMessages, LocaleMessageEntry } from './base-i18n-service';

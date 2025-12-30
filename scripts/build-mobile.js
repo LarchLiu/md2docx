@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const DIST_DIR = 'build/mobile';
+const DIST_DIR = 'mobile/build/mobile';
 const SRC_DIR = 'src';
 
 /**
@@ -17,7 +17,7 @@ const SRC_DIR = 'src';
  */
 function syncVersion() {
   const packagePath = path.join(__dirname, '../package.json');
-  const pubspecPath = path.join(__dirname, '../pubspec.yaml');
+  const pubspecPath = path.join(__dirname, '../mobile/pubspec.yaml');
   
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   let pubspec = fs.readFileSync(pubspecPath, 'utf8');
@@ -82,7 +82,7 @@ async function buildMainBundle() {
 
   await build({
     entryPoints: {
-      'bundle': 'src/platform/mobile/main.ts'
+      'bundle': 'mobile/src/webview/main.ts'
     },
     bundle: true,
     outdir: DIST_DIR,
@@ -118,7 +118,7 @@ async function buildIframeRenderWorkerBundle() {
 
   await build({
     entryPoints: {
-      'iframe-render-worker': 'src/platform/mobile/iframe-render-worker.ts'
+      'iframe-render-worker': 'mobile/src/webview/iframe-render-worker.ts'
     },
     bundle: true,
     outdir: DIST_DIR,
@@ -189,10 +189,10 @@ function copyResources() {
   console.log('📂 Copying resources...');
 
   // Copy HTML templates
-  copyFile('src/platform/mobile/index.html', `${DIST_DIR}/index.html`);
+  copyFile('mobile/src/webview/index.html', `${DIST_DIR}/index.html`);
   console.log('  ✓ index.html');
   
-  copyFile('src/platform/mobile/iframe-render.html', `${DIST_DIR}/iframe-render.html`);
+  copyFile('mobile/src/webview/iframe-render.html', `${DIST_DIR}/iframe-render.html`);
   console.log('  ✓ iframe-render.html');
 
   // Copy themes

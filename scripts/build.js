@@ -14,7 +14,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Sync version from package.json to manifest.json
 function syncVersion() {
   const packagePath = path.join(__dirname, '../package.json');
-  const manifestPath = path.join(__dirname, '../src/manifest.json');
+  const manifestPath = path.join(__dirname, '../chrome/manifest.json');
   
   const packageJson = JSON.parse(fs.readFileSync(packagePath, 'utf8'));
   const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));

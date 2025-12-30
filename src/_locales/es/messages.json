@@ -163,6 +163,10 @@
     "message": "¿Eliminar todos los archivos recientes de la lista?",
     "description": "Confirmation message for clearing recent files"
   },
+  "close": {
+    "message": "Cerrar",
+    "description": "Close button text/tooltip"
+  },
   "delete": {
     "message": "Eliminar",
     "description": "Delete button text"

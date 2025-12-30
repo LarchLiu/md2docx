@@ -49,11 +49,11 @@ const copyFileIfExists = (sourcePath, targetPath, logMessage) => {
 export const createBuildConfig = () => {
   const config = {
     entryPoints: {
-      'core/content-detector': 'src/core/content-detector.ts',
-      'core/main': 'src/core/main.ts',
-      'core/background': 'src/core/background.ts',
-      'core/offscreen-render-worker': 'src/platform/chrome/offscreen-render-worker.ts',
-      'ui/popup/popup': 'src/ui/popup/popup.ts',
+      'core/content-detector': 'chrome/src/webview/content-detector.ts',
+      'core/main': 'chrome/src/webview/main.ts',
+      'core/background': 'chrome/src/host/background.ts',
+      'core/offscreen-render-worker': 'chrome/src/webview/offscreen-render-worker.ts',
+      'ui/popup/popup': 'chrome/src/popup/popup.ts',
       'ui/styles': 'src/ui/styles.css'
     },
     bundle: true,
@@ -87,10 +87,10 @@ export const createBuildConfig = () => {
           build.onEnd(() => {
             try {
               const fileCopies = [
-                { src: 'src/manifest.json', dest: 'dist/chrome/manifest.json', log: '📄 Copied manifest.json from src/' },
-                { src: 'src/ui/popup/popup.html', dest: 'dist/chrome/ui/popup/popup.html' },
-                { src: 'src/ui/popup/popup.css', dest: 'dist/chrome/ui/popup/popup.css' },
-                { src: 'src/platform/chrome/offscreen-render.html', dest: 'dist/chrome/ui/offscreen-render.html' }
+                { src: 'chrome/manifest.json', dest: 'dist/chrome/manifest.json', log: '📄 Copied manifest.json from chrome/' },
+                { src: 'chrome/src/popup/popup.html', dest: 'dist/chrome/ui/popup/popup.html' },
+                { src: 'chrome/src/popup/popup.css', dest: 'dist/chrome/ui/popup/popup.css' },
+                { src: 'chrome/src/webview/offscreen-render.html', dest: 'dist/chrome/ui/offscreen-render.html' }
               ];
 
               fileCopies.push(...copyDirectory('icons', 'dist/chrome/icons'));

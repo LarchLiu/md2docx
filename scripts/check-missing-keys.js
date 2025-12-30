@@ -11,8 +11,6 @@ import path from 'path';
 import { findI18nKeysInCode } from './shared/find-i18n-keys-in-code.js';
 
 const LOCALES_DIR = path.join(import.meta.dirname, '../src/_locales');
-const SRC_DIR = path.join(import.meta.dirname, '../src');
-const FLUTTER_DIR = path.join(import.meta.dirname, '../lib');
 
 // Get all locale directories
 function getLocaleDirs() {
@@ -43,7 +41,7 @@ function getKeys(messages) {
 
 // Find all translation key references in source code
 function findKeysInCode() {
-  return findI18nKeysInCode({ srcDir: SRC_DIR, flutterDir: FLUTTER_DIR });
+  return findI18nKeysInCode();
 }
 
 // Main function
