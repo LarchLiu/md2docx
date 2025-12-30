@@ -23,6 +23,10 @@ export class MarkdownPreviewPanel {
   private _isScrolling = false;  // Prevent infinite scroll loop
   private _scrollSyncEnabled = true;
 
+  // Progress callbacks
+  private _exportProgressCallback: ((progress: number) => void) | null = null;
+  private _renderProgressCallback: ((completed: number, total: number) => void) | null = null;
+
   public static createOrShow(
     extensionUri: vscode.Uri,
     document: vscode.TextDocument,
@@ -132,10 +136,30 @@ export class MarkdownPreviewPanel {
     });
   }
 
-  public async exportToDocx(): Promise<void> {
-    this._panel.webview.postMessage({
-      type: 'EXPORT_DOCX'
+  // Export result resolver (for async export completion)
+  private _exportResultResolver: ((success: boolean) => void) | null = null;
+
+  public async exportToDocx(onProgress?: (progress: number) => void): Promise<boolean> {
+    return new Promise((resolve) => {
+      // Store callbacks
+      this._exportProgressCallback = onProgress || null;
+      this._exportResultResolver = (success: boolean) => {
+        this._exportProgressCallback = null;
+        this._exportResultResolver = null;
+        resolve(success);
+      };
+      
+      this._panel.webview.postMessage({
+        type: 'EXPORT_DOCX'
+      });
     });
+  }
+
+  /**
+   * Set callback for render progress updates
+   */
+  public setRenderProgressCallback(callback: ((completed: number, total: number) => void) | null): void {
+    this._renderProgressCallback = callback;
   }
 
   /**
@@ -268,7 +292,27 @@ export class MarkdownPreviewPanel {
           break;
 
         case 'RENDER_PROGRESS':
-          // Rendering progress update - no action needed
+          // Rendering progress update
+          if (this._renderProgressCallback && payload) {
+            const { completed, total } = payload as { completed: number; total: number };
+            this._renderProgressCallback(completed, total);
+          }
+          break;
+
+        case 'EXPORT_PROGRESS':
+          // DOCX export progress update
+          if (this._exportProgressCallback && payload) {
+            const { completed, total } = payload as { completed: number; total: number };
+            const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+            this._exportProgressCallback(progress);
+          }
+          break;
+
+        case 'EXPORT_DOCX_RESULT':
+          // Export completed - resolve the promise
+          if (this._exportResultResolver) {
+            this._exportResultResolver(payload?.success ?? false);
+          }
           break;
 
         case 'RENDER_COMPLETE':

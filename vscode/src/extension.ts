@@ -10,6 +10,8 @@ import { ExtensionCacheService } from './cache-service';
 
 let outputChannel: vscode.OutputChannel;
 let cacheService: ExtensionCacheService;
+let renderStatusBarItem: vscode.StatusBarItem;
+let renderStatusTimeout: ReturnType<typeof setTimeout> | null = null;
 
 // Debounce timer for document changes
 let updateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -25,12 +27,38 @@ export function activate(context: vscode.ExtensionContext) {
     outputChannel.appendLine(`Cache service init error: ${err}`);
   });
 
+  // Create status bar item for render progress
+  renderStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+  context.subscriptions.push(renderStatusBarItem);
+
+  // Helper to update render progress in status bar
+  const updateRenderProgress = (completed: number, total: number) => {
+    if (renderStatusTimeout) {
+      clearTimeout(renderStatusTimeout);
+      renderStatusTimeout = null;
+    }
+    
+    if (total > 0 && completed < total) {
+      renderStatusBarItem.text = `$(sync~spin) Rendering ${completed}/${total}`;
+      renderStatusBarItem.show();
+    } else {
+      renderStatusBarItem.text = `$(check) Render complete`;
+      renderStatusBarItem.show();
+      // Hide after 2 seconds
+      renderStatusTimeout = setTimeout(() => {
+        renderStatusBarItem.hide();
+        renderStatusTimeout = null;
+      }, 2000);
+    }
+  };
+
   // Register preview command
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownViewer.preview', () => {
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'markdown') {
-        MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService);
+        const panel = MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService);
+        panel.setRenderProgressCallback(updateRenderProgress);
       } else {
         vscode.window.showWarningMessage('Please open a Markdown file first');
       }
@@ -42,7 +70,8 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('markdownViewer.previewToSide', () => {
       const editor = vscode.window.activeTextEditor;
       if (editor && editor.document.languageId === 'markdown') {
-        MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService, vscode.ViewColumn.Beside);
+        const panel = MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService, vscode.ViewColumn.Beside);
+        panel.setRenderProgressCallback(updateRenderProgress);
       } else {
         vscode.window.showWarningMessage('Please open a Markdown file first');
       }
@@ -54,7 +83,26 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('markdownViewer.exportDocx', async () => {
       const panel = MarkdownPreviewPanel.currentPanel;
       if (panel) {
-        await panel.exportToDocx();
+        await vscode.window.withProgress(
+          {
+            location: vscode.ProgressLocation.Notification,
+            title: 'Exporting to DOCX',
+            cancellable: false,
+          },
+          async (progress) => {
+            let lastProgress = 0;
+            const success = await panel.exportToDocx((percent) => {
+              const increment = percent - lastProgress;
+              if (increment > 0) {
+                progress.report({ increment, message: `${percent}%` });
+                lastProgress = percent;
+              }
+            });
+            if (!success) {
+              vscode.window.showErrorMessage('DOCX export failed');
+            }
+          }
+        );
       } else {
         vscode.window.showWarningMessage('Please open the Markdown preview first');
       }
@@ -133,6 +181,9 @@ export function activate(context: vscode.ExtensionContext) {
 }
 
 export function deactivate() {
+  if (renderStatusTimeout) {
+    clearTimeout(renderStatusTimeout);
+  }
   if (outputChannel) {
     outputChannel.dispose();
   }
