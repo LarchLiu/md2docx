@@ -346,39 +346,9 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
 // Post-process Content (same as Mobile)
 // ============================================================================
 
-async function postProcessContent(container: Element): Promise<void> {
-  // Handle all links
-  const links = container.querySelectorAll('a[href]');
-  for (const link of links) {
-    const anchor = link as HTMLAnchorElement;
-    const href = anchor.getAttribute('href') || '';
-    
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      
-      // External links (http/https) - open in external browser
-      if (href.startsWith('http://') || href.startsWith('https://')) {
-        vscodeBridge.postMessage('OPEN_URL', { url: href });
-      }
-      // Anchor links
-      else if (href.startsWith('#')) {
-        const targetId = href.slice(1);
-        const target = document.getElementById(targetId);
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth' });
-        }
-      }
-      // Relative links
-      else {
-        const isMarkdown = href.endsWith('.md') || href.endsWith('.markdown');
-        if (isMarkdown) {
-          vscodeBridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
-        } else {
-          vscodeBridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
-        }
-      }
-    });
-  }
+async function postProcessContent(_container: Element): Promise<void> {
+  // Link click handling is done via event delegation in initializeUI
+  // No per-element processing needed here
 }
 
 // ============================================================================
@@ -499,6 +469,38 @@ window.exportDocx = () => {
 // ============================================================================
 
 function initializeUI(): void {
+  // Setup link click handling via event delegation
+  // This ensures all links (including dynamically added ones) are handled
+  const contentContainer = document.getElementById('markdown-content');
+  if (contentContainer) {
+    contentContainer.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      
+      const href = anchor.getAttribute('href') || '';
+      e.preventDefault();
+      e.stopPropagation();
+      
+      // External links (http/https) - open in external browser
+      if (href.startsWith('http://') || href.startsWith('https://')) {
+        vscodeBridge.postMessage('OPEN_URL', { url: href });
+      }
+      // Anchor links
+      else if (href.startsWith('#')) {
+        const targetId = href.slice(1);
+        const targetEl = document.getElementById(targetId);
+        if (targetEl) {
+          targetEl.scrollIntoView({ behavior: 'smooth' });
+        }
+      }
+      // Relative links (including .md files)
+      else {
+        vscodeBridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
+      }
+    });
+  }
+
   // Create settings panel (needs to be in DOM for positioning)
   settingsPanel = createSettingsPanel({
     currentTheme: currentThemeId,

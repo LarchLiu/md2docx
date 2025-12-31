@@ -327,6 +327,37 @@ export class MarkdownPreviewPanel {
           }
           break;
 
+        case 'OPEN_URL':
+          // Open external URL in default browser
+          if (payload && (payload as { url: string }).url) {
+            const url = (payload as { url: string }).url;
+            vscode.env.openExternal(vscode.Uri.parse(url));
+          }
+          response = { success: true };
+          break;
+
+        case 'OPEN_RELATIVE_FILE':
+          // Open relative file in VS Code
+          if (payload && (payload as { path: string }).path && this._document) {
+            const relativePath = (payload as { path: string }).path;
+            const documentDir = path.dirname(this._document.uri.fsPath);
+            const targetPath = path.resolve(documentDir, relativePath);
+            const targetUri = vscode.Uri.file(targetPath);
+            
+            // Check if it's a markdown file
+            if (relativePath.endsWith('.md') || relativePath.endsWith('.markdown')) {
+              // Open markdown file and show preview
+              const doc = await vscode.workspace.openTextDocument(targetUri);
+              await vscode.window.showTextDocument(doc, vscode.ViewColumn.One);
+              this.setDocument(doc);
+            } else {
+              // Open other files normally
+              await vscode.commands.executeCommand('vscode.open', targetUri);
+            }
+          }
+          response = { success: true };
+          break;
+
         default:
           console.warn(`Unknown message type: ${type}`);
           response = null;

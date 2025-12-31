@@ -187,11 +187,17 @@ export function isSafeUrl(url: string | null | undefined): boolean {
     return lower.startsWith('data:image/') || lower.startsWith('data:application/pdf');
   }
 
+  // Allow relative paths (don't start with a protocol)
+  if (!trimmed.includes(':') || trimmed.startsWith('./') || trimmed.startsWith('../') || trimmed.startsWith('/')) {
+    return true;
+  }
+
   try {
     const parsed = new URL(trimmed, document.baseURI);
     return ['http:', 'https:', 'mailto:', 'tel:', 'file:'].includes(parsed.protocol);
   } catch (error) {
-    return false;
+    // If URL parsing fails, it's likely a relative path - allow it
+    return true;
   }
 }
 

@@ -244,6 +244,7 @@ body.toc-hidden #markdown-wrapper {
 #markdown-content a {
   color: #2563eb;
   text-decoration: none;
+  cursor: pointer;
 }
 
 #markdown-content a:hover {
