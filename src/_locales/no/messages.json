@@ -243,6 +243,10 @@
     "message": "Removed from list",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL kopiert. Lim inn i adressefeltet for å åpne.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "Tøm historikk",
     "description": "Clear history button"

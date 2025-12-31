@@ -243,6 +243,10 @@
     "message": "Removed from list",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL kopierad. Klistra in i adressfältet för att öppna.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "Rensa historik",
     "description": "Clear history button"

@@ -243,6 +243,10 @@
     "message": "已从列表移除",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "链接已复制，请粘贴到地址栏打开",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "清空历史",
     "description": "清空历史按钮"

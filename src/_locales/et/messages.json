@@ -243,6 +243,10 @@
     "message": "Loendist eemaldatud",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL kopeeritud. Kleebi aadressiribale avamiseks.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "Kustuta ajalugu",
     "description": "Clear history button"

@@ -243,6 +243,10 @@
     "message": "Removed from list",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL disalin. Tempel di bilah alamat untuk membuka.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "Hapus riwayat",
     "description": "Clear history button"

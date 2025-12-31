@@ -243,6 +243,10 @@
     "message": "Removido da lista",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL copiado. Cole na barra de endereços para abrir.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "Limpar histórico",
     "description": "Clear history button"

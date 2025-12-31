@@ -243,6 +243,10 @@
     "message": "목록에서 제거되었습니다",
     "description": "Toast when file is removed from list"
   },
+  "file_url_copied": {
+    "message": "URL이 복사되었습니다. 주소창에 붙여넣어 열어주세요.",
+    "description": "Message shown when file URL is copied to clipboard in Firefox"
+  },
   "history_clear": {
     "message": "기록 지우기",
     "description": "기록 지우기 버튼"

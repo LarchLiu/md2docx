@@ -126,6 +126,18 @@ export function createHistoryTabManager({ showMessage, showConfirm }: HistoryTab
       // Add click handler to open the document
       historyItemEl.addEventListener('click', async () => {
         try {
+          const isFirefox = typeof browser !== 'undefined' || navigator.userAgent.includes('Firefox');
+          const isFileUrl = item.url.startsWith('file://');
+          
+          // Firefox cannot open file:// URLs from extension context due to security restrictions
+          if (isFirefox && isFileUrl) {
+            // Copy URL to clipboard and show message
+            await navigator.clipboard.writeText(item.url);
+            showMessage(translate('file_url_copied') || 'URL copied. Paste in address bar to open.', 'info');
+            return;
+          }
+          
+          // For http/https URLs or Chrome, open normally
           window.open(item.url, '_blank');
           window.close();
         } catch (error) {
