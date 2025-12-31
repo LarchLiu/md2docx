@@ -17,9 +17,17 @@ let renderStatusTimeout: ReturnType<typeof setTimeout> | null = null;
 let updateDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 const UPDATE_DEBOUNCE_MS = 300;
 
+// Supported language IDs for preview
+const SUPPORTED_LANGUAGES = ['markdown', 'mermaid', 'vega', 'graphviz', 'infographic'];
+
 export function activate(context: vscode.ExtensionContext) {
   outputChannel = vscode.window.createOutputChannel('Markdown Viewer');
   outputChannel.appendLine('Markdown Viewer is now active');
+
+  // Helper to check if a document is supported for preview
+  const isSupportedDocument = (document: vscode.TextDocument): boolean => {
+    return SUPPORTED_LANGUAGES.includes(document.languageId);
+  };
 
   // Initialize cache service
   cacheService = new ExtensionCacheService(context);
@@ -56,11 +64,11 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownViewer.preview', () => {
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.languageId === 'markdown') {
+      if (editor && isSupportedDocument(editor.document)) {
         const panel = MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService);
         panel.setRenderProgressCallback(updateRenderProgress);
       } else {
-        vscode.window.showWarningMessage('Please open a Markdown file first');
+        vscode.window.showWarningMessage('Please open a supported file (Markdown, Mermaid, Vega, GraphViz, or Infographic)');
       }
     })
   );
@@ -69,11 +77,11 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('markdownViewer.previewToSide', () => {
       const editor = vscode.window.activeTextEditor;
-      if (editor && editor.document.languageId === 'markdown') {
+      if (editor && isSupportedDocument(editor.document)) {
         const panel = MarkdownPreviewPanel.createOrShow(context.extensionUri, editor.document, cacheService, vscode.ViewColumn.Beside);
         panel.setRenderProgressCallback(updateRenderProgress);
       } else {
-        vscode.window.showWarningMessage('Please open a Markdown file first');
+        vscode.window.showWarningMessage('Please open a supported file (Markdown, Mermaid, Vega, GraphViz, or Infographic)');
       }
     })
   );
@@ -132,7 +140,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Auto-update preview on document change (with debounce)
   context.subscriptions.push(
     vscode.workspace.onDidChangeTextDocument((e) => {
-      if (e.document.languageId === 'markdown') {
+      if (isSupportedDocument(e.document)) {
         const panel = MarkdownPreviewPanel.currentPanel;
         if (panel && panel.isDocumentMatch(e.document)) {
           // Debounce updates to avoid excessive re-renders during typing
@@ -151,7 +159,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Auto-update preview on active editor change
   context.subscriptions.push(
     vscode.window.onDidChangeActiveTextEditor((editor) => {
-      if (editor && editor.document.languageId === 'markdown') {
+      if (editor && isSupportedDocument(editor.document)) {
         const panel = MarkdownPreviewPanel.currentPanel;
         if (panel) {
           panel.setDocument(editor.document);
@@ -163,7 +171,7 @@ export function activate(context: vscode.ExtensionContext) {
   // Scroll sync: Editor → Preview (when editor visible range changes)
   context.subscriptions.push(
     vscode.window.onDidChangeTextEditorVisibleRanges((event) => {
-      if (event.textEditor.document.languageId === 'markdown') {
+      if (isSupportedDocument(event.textEditor.document)) {
         const panel = MarkdownPreviewPanel.currentPanel;
         if (panel && panel.isDocumentMatch(event.textEditor.document)) {
           // Get the topmost visible line

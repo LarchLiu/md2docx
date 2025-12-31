@@ -159,14 +159,14 @@ digraph G {
 
 ### File Types
 
-| Extension | Supported |
-|-----------|-----------|
-| `.md` | ✅ |
-| `.markdown` | ✅ |
-| `.mermaid` | ✅ |
-| `.vega`, `.vl` | ✅ |
-| `.gv` | ✅ |
-| `.infographic` | ✅ |
+| Extension | Language ID | Supported |
+|-----------|-------------|-----------|
+| `.md` | `markdown` | ✅ |
+| `.markdown` | `markdown` | ✅ |
+| `.mermaid` | `mermaid` | ✅ |
+| `.vega`, `.vl` | `vega` | ✅ |
+| `.gv`, `.dot` | `graphviz` | ✅ |
+| `.infographic` | `infographic` | ✅ |
 
 ---
 

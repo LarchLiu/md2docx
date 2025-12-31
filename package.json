@@ -97,9 +97,52 @@
     "Other"
   ],
   "activationEvents": [
-    "onLanguage:markdown"
+    "onLanguage:markdown",
+    "onLanguage:mermaid",
+    "onLanguage:vega",
+    "onLanguage:graphviz",
+    "onLanguage:infographic",
+    "onLanguage:xml"
   ],
   "contributes": {
+    "languages": [
+      {
+        "id": "mermaid",
+        "aliases": ["Mermaid", "mermaid"],
+        "extensions": [".mermaid", ".mmd"],
+        "icon": {
+          "light": "icons/mermaid.svg",
+          "dark": "icons/mermaid.svg"
+        }
+      },
+      {
+        "id": "vega",
+        "aliases": ["Vega", "vega", "Vega-Lite", "vega-lite"],
+        "extensions": [".vega", ".vl", ".vega-lite"],
+        "icon": {
+          "light": "icons/vega.svg",
+          "dark": "icons/vega.svg"
+        }
+      },
+      {
+        "id": "graphviz",
+        "aliases": ["GraphViz", "graphviz", "DOT", "dot"],
+        "extensions": [".gv", ".dot"],
+        "icon": {
+          "light": "icons/graphviz.svg",
+          "dark": "icons/graphviz.svg"
+        }
+      },
+      {
+        "id": "infographic",
+        "aliases": ["Infographic", "infographic"],
+        "extensions": [".infographic"],
+        "icon": {
+          "light": "icons/infographic.svg",
+          "dark": "icons/infographic.svg"
+        }
+      }
+    ],
     "commands": [
       {
         "command": "markdownViewer.preview",
@@ -136,7 +179,7 @@
       "editor/title": [
         {
           "command": "markdownViewer.previewToSide",
-          "when": "editorLangId == markdown",
+          "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic",
           "group": "navigation"
         },
         {
@@ -153,22 +196,22 @@
       "editor/context": [
         {
           "command": "markdownViewer.preview",
-          "when": "editorLangId == markdown",
+          "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic",
           "group": "navigation"
         }
       ],
       "commandPalette": [
         {
           "command": "markdownViewer.preview",
-          "when": "editorLangId == markdown"
+          "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic"
         },
         {
           "command": "markdownViewer.previewToSide",
-          "when": "editorLangId == markdown"
+          "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic"
         },
         {
           "command": "markdownViewer.exportDocx",
-          "when": "editorLangId == markdown"
+          "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic"
         }
       ]
     },
@@ -216,7 +259,7 @@
         "command": "markdownViewer.previewToSide",
         "key": "ctrl+shift+v",
         "mac": "cmd+shift+v",
-        "when": "editorLangId == markdown"
+        "when": "editorLangId == markdown || editorLangId == mermaid || editorLangId == vega || editorLangId == graphviz || editorLangId == infographic || resourceExtname == .svg"
       }
     ]
   },

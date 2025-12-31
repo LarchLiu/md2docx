@@ -72,11 +72,11 @@ Support for opening dedicated diagram files:
 | File Format | Chrome | Firefox | VS Code | Mobile |
 |-------------|:------:|:-------:|:-------:|:------:|
 | `.md`, `.markdown` | ✅ | ✅ | ✅ | ✅ |
-| `.mermaid` | ✅ | ✅ | ❌ | ✅ |
-| `.gv`, `.dot` | ✅ | ✅ | ❌ | ✅ |
-| `.vega` | ✅ | ✅ | ❌ | ✅ |
-| `.vl`, `.vega-lite` | ✅ | ✅ | ❌ | ✅ |
-| `.infographic` | ✅ | ✅ | ❌ | ✅ |
+| `.mermaid` | ✅ | ✅ | ✅ | ✅ |
+| `.gv`, `.dot` | ✅ | ✅ | ✅ | ✅ |
+| `.vega` | ✅ | ✅ | ✅ | ✅ |
+| `.vl`, `.vega-lite` | ✅ | ✅ | ✅ | ✅ |
+| `.infographic` | ✅ | ✅ | ✅ | ✅ |
 
 ### Export Capabilities
 

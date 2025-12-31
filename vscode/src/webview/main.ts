@@ -10,6 +10,7 @@
 import { platform, vscodeBridge } from './api-impl';
 import { renderMarkdownDocument } from '../../../src/core/viewer/viewer-controller';
 import { AsyncTaskManager } from '../../../src/core/markdown-processor';
+import { wrapFileContent } from '../../../src/utils/file-wrapper';
 // Shared modules (same as Chrome/Mobile)
 import Localization from '../../../src/utils/localization';
 import themeManager from '../../../src/utils/theme-manager';
@@ -223,7 +224,10 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
   const newFilename = filename || 'document.md';
   const fileChanged = currentFilename !== newFilename;
 
-  currentMarkdown = content;
+  // Wrap non-markdown file content (mermaid, vega, graphviz, infographic)
+  const wrappedContent = wrapFileContent(content, newFilename);
+  
+  currentMarkdown = wrappedContent;
   currentFilename = newFilename;
 
   try {
@@ -289,7 +293,7 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
     // Render markdown (same as Mobile)
     // Use incremental update only if same file and container has existing content
     const renderResult = await renderMarkdownDocument({
-      markdown: content,
+      markdown: wrappedContent,
       container: container as HTMLElement,
       renderer: pluginRenderer,
       translate: (key: string, subs?: string | string[]) => Localization.translate(key, subs),

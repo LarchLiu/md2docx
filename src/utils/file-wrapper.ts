@@ -13,6 +13,7 @@ export function getFileType(filePath: string): string {
   
   switch (ext) {
     case 'mermaid':
+    case 'mmd':
       return 'mermaid';
     case 'vega':
       return 'vega';
@@ -24,6 +25,8 @@ export function getFileType(filePath: string): string {
       return 'dot';
     case 'infographic':
       return 'infographic';
+    case 'svg':
+      return 'svg';
     case 'html':
       return 'html';
     case 'md':
@@ -49,6 +52,11 @@ export function wrapFileContent(content: string, filePath: string): string {
   
   // If it's HTML, we don't support wrapping (per requirements)
   if (fileType === 'html') {
+    return content;
+  }
+  
+  // SVG files are embedded directly as HTML
+  if (fileType === 'svg') {
     return content;
   }
   
