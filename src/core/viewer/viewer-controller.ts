@@ -1,18 +1,32 @@
-// ViewerController
-// Shared, platform-agnostic markdown rendering orchestration.
+/**
+ * ViewerController - Shared, platform-agnostic markdown rendering orchestration.
+ * 
+ * This version uses MarkdownDocument for block-ID based virtual DOM,
+ * providing precise incremental updates without morphdom.
+ */
 
 import {
   AsyncTaskManager,
   extractHeadings,
   extractTitle,
-  processMarkdownStreaming,
-  processMarkdownToHtml,
+  createMarkdownProcessor,
+  processTablesForWordCompatibility,
+  sanitizeRenderedHtml,
   type HeadingInfo,
 } from '../markdown-processor';
 
-import { diffAndPatch, canIncrementalUpdate, clearHtmlCache } from '../dom-differ';
+import {
+  MarkdownDocument,
+  executeDOMCommands,
+  type DOMCommand,
+  type BlockMeta,
+} from '../markdown-document';
 
 import type { PluginRenderer, TranslateFunction } from '../../types/index';
+import type { Processor } from 'unified';
+
+// Re-export HeadingInfo for backward compatibility
+export type { HeadingInfo };
 
 export type ViewerRenderResult = {
   title: string | null;
@@ -47,6 +61,7 @@ export type RenderMarkdownOptions = {
   /**
    * When true, use incremental DOM diffing instead of full re-render.
    * This preserves already-rendered plugin content when possible.
+   * @deprecated Now always uses block-ID based incremental update
    */
   incrementalUpdate?: boolean;
 
@@ -58,6 +73,37 @@ export type RenderMarkdownOptions = {
   postProcess?: (container: Element) => Promise<void> | void;
 };
 
+// Global document instance for incremental updates
+let documentInstance: MarkdownDocument | null = null;
+
+/**
+ * Get or create the markdown document instance
+ */
+export function getDocument(): MarkdownDocument {
+  if (!documentInstance) {
+    documentInstance = new MarkdownDocument();
+  }
+  return documentInstance;
+}
+
+/**
+ * Reset the document instance (call when switching files)
+ */
+export function resetDocument(): void {
+  documentInstance = null;
+}
+
+/**
+ * Clear HTML cache (for backward compatibility)
+ * @deprecated Use resetDocument() instead
+ */
+export function clearHtmlCache(): void {
+  resetDocument();
+}
+
+/**
+ * Main render function using MarkdownDocument architecture
+ */
 export async function renderMarkdownDocument(options: RenderMarkdownOptions): Promise<ViewerRenderResult> {
   const {
     markdown,
@@ -67,7 +113,6 @@ export async function renderMarkdownDocument(options: RenderMarkdownOptions): Pr
     taskManager: providedTaskManager,
     clearContainer = true,
     processTasks = true,
-    incrementalUpdate = false,
     onHeadings,
     onProgress,
     onBeforeTasks,
@@ -78,62 +123,48 @@ export async function renderMarkdownDocument(options: RenderMarkdownOptions): Pr
 
   const taskManager = providedTaskManager ?? new AsyncTaskManager(translate);
 
-  // Use incremental update if enabled and container has existing content
-  if (incrementalUpdate && canIncrementalUpdate(container)) {
-    return renderMarkdownIncremental({
-      markdown,
-      container,
-      renderer,
-      translate,
-      taskManager,
-      processTasks,
-      onHeadings,
-      onProgress,
-      onBeforeTasks,
-      onAfterTasks,
-      onStreamingComplete,
-      postProcess,
-    });
-  }
-
-  // Full render path
-  if (clearContainer) {
+  // Check if this is a fresh render
+  const isFirstRender = container.childNodes.length === 0 || clearContainer;
+  
+  if (isFirstRender && clearContainer) {
+    // Reset document for fresh render
+    resetDocument();
     container.innerHTML = '';
-    clearHtmlCache(); // Clear HTML cache when doing full render
+  }
+  
+  // Get or create document
+  const doc = getDocument();
+  
+  // Update document and get DOM commands
+  const updateResult = doc.update(markdown);
+  
+  // Create processor for rendering
+  const processor = createMarkdownProcessor(renderer, taskManager, translate);
+  
+  if (isFirstRender) {
+    // First render: render all blocks with streaming
+    await renderAllBlocksStreaming(doc, processor, container, taskManager, onHeadings);
+  } else {
+    // Incremental update: apply DOM commands
+    await applyIncrementalUpdate(doc, processor, container, updateResult.commands, taskManager);
   }
 
-  // Process and render markdown with streaming
-  await processMarkdownStreaming(markdown, {
-    renderer,
-    taskManager,
-    translate,
-    onChunk: async (html) => {
-      if (taskManager.isAborted()) return;
+  // Notify streaming complete
+  onStreamingComplete?.();
 
-      // Append chunk HTML to container
-      const template = document.createElement('template');
-      template.innerHTML = html;
-      container.appendChild(template.content);
-
-      // Update headings after each chunk for progressive TOC
-      const headings = extractHeadings(container);
-      onHeadings?.(headings);
-    },
-  });
+  // Update headings (final)
+  const headings = extractHeadings(container);
+  onHeadings?.(headings);
 
   if (taskManager.isAborted()) {
     return {
       title: extractTitle(markdown),
-      headings: [],
+      headings,
       taskManager,
     };
   }
 
-  // Streaming rendering is complete, notify caller
-  onStreamingComplete?.();
-
-  const headings = extractHeadings(container);
-
+  // Process async tasks
   if (processTasks) {
     onBeforeTasks?.();
     await taskManager.processAll((completed, total) => {
@@ -160,71 +191,158 @@ export async function renderMarkdownDocument(options: RenderMarkdownOptions): Pr
 }
 
 /**
- * Perform incremental update using DOM diffing.
- * Preserves already-rendered plugin content when source hash matches.
+ * Configuration for chunked streaming
  */
-async function renderMarkdownIncremental(options: Omit<RenderMarkdownOptions, 'clearContainer' | 'incrementalUpdate'>): Promise<ViewerRenderResult> {
-  const {
-    markdown,
-    container,
-    renderer,
-    translate,
-    taskManager,
-    processTasks = true,
-    onHeadings,
-    onProgress,
-    onBeforeTasks,
-    onAfterTasks,
-    onStreamingComplete,
-    postProcess,
-  } = options;
+const INITIAL_CHUNK_SIZE = 50; // Lines for first chunk
+const CHUNK_GROWTH_FACTOR = 2; // Double chunk size each time
 
-  // Process markdown to HTML (not streaming for incremental update)
-  const html = await processMarkdownToHtml(markdown, {
-    renderer,
-    taskManager: taskManager!,
-    translate,
-  });
-
-  if (taskManager!.isAborted()) {
-    return {
-      title: extractTitle(markdown),
-      headings: [],
-      taskManager: taskManager!,
-    };
-  }
-
-  // Perform DOM diff and patch
-  diffAndPatch(container, html);
-
-  // Streaming complete (in this case, single pass)
-  onStreamingComplete?.();
-
-  // Update headings
-  const headings = extractHeadings(container);
-  onHeadings?.(headings);
-
-  if (processTasks) {
-    onBeforeTasks?.();
-    await taskManager!.processAll((completed, total) => {
-      onProgress?.(completed, total);
-    });
-    onAfterTasks?.();
-
-    if (taskManager!.isAborted()) {
-      return {
-        title: extractTitle(markdown),
-        headings,
-        taskManager: taskManager!,
-      };
+/**
+ * Render all blocks for initial render with streaming (chunked)
+ */
+async function renderAllBlocksStreaming(
+  doc: MarkdownDocument,
+  processor: Processor,
+  container: HTMLElement,
+  taskManager: AsyncTaskManager,
+  onHeadings?: (headings: HeadingInfo[]) => void
+): Promise<void> {
+  const blocks = doc.getBlocks();
+  
+  let currentLineCount = 0;
+  let targetChunkSize = INITIAL_CHUNK_SIZE;
+  let chunkStartIndex = 0;
+  
+  for (let i = 0; i < blocks.length; i++) {
+    if (taskManager.isAborted()) return;
+    
+    const block = blocks[i];
+    
+    // Render block content
+    const html = await renderBlockContent(block.content, processor);
+    doc.setBlockHtml(i, html);
+    
+    // Create and append DOM element
+    const div = document.createElement('div');
+    div.className = 'md-block';
+    div.innerHTML = html;
+    setBlockAttributes(div, block);
+    container.appendChild(div);
+    
+    currentLineCount += block.lineCount;
+    
+    // Check if chunk complete
+    if (currentLineCount >= targetChunkSize || i === blocks.length - 1) {
+      // Yield to allow UI update
+      await yieldToMain();
+      
+      // Update headings progressively
+      if (onHeadings) {
+        const headings = extractHeadings(container);
+        onHeadings(headings);
+      }
+      
+      // Prepare next chunk
+      currentLineCount = 0;
+      targetChunkSize *= CHUNK_GROWTH_FACTOR;
+      chunkStartIndex = i + 1;
     }
-
-    await postProcess?.(container);
   }
+}
 
-  return {
-    title: extractTitle(markdown),
-    headings,
-    taskManager: taskManager!,
-  };
+/**
+ * Apply incremental update using DOM commands
+ */
+async function applyIncrementalUpdate(
+  doc: MarkdownDocument,
+  processor: Processor,
+  container: HTMLElement,
+  commands: DOMCommand[],
+  taskManager: AsyncTaskManager
+): Promise<void> {
+  // First, render HTML for all blocks that need it
+  for (const cmd of commands) {
+    if (taskManager.isAborted()) return;
+    
+    if (cmd.type === 'append' || cmd.type === 'insertBefore') {
+      const block = doc.getBlockById(cmd.blockId);
+      if (block && !block.html) {
+        const html = await renderBlockContent(block.content, processor);
+        doc.setBlockHtmlById(cmd.blockId, html);
+        // Update command with rendered HTML
+        cmd.html = html;
+      } else if (block?.html) {
+        cmd.html = block.html;
+      }
+    } else if (cmd.type === 'replace') {
+      const block = doc.getBlockById(cmd.blockId);
+      if (block) {
+        const html = await renderBlockContent(block.content, processor);
+        doc.setBlockHtmlById(cmd.blockId, html);
+        cmd.html = html;
+      }
+    }
+  }
+  
+  // Execute DOM commands
+  executeDOMCommands(container, commands, document);
+}
+
+/**
+ * Render a single block's content to HTML
+ */
+async function renderBlockContent(content: string, processor: Processor): Promise<string> {
+  const file = await processor.process(content);
+  let html = String(file);
+  html = processTablesForWordCompatibility(html);
+  html = sanitizeRenderedHtml(html);
+  return html;
+}
+
+/**
+ * Set block attributes on a DOM element
+ */
+function setBlockAttributes(el: HTMLElement, block: BlockMeta): void {
+  el.setAttribute('data-block-id', block.id);
+  el.setAttribute('data-block-hash', block.hash);
+  el.setAttribute('data-line', String(block.startLine));
+  if (block.lineCount > 0) {
+    el.setAttribute('data-line-count', String(block.lineCount));
+  }
+  // Add code-line class for scroll sync compatibility
+  el.classList.add('code-line');
+}
+
+/**
+ * Yield to main thread to keep UI responsive
+ */
+function yieldToMain(): Promise<void> {
+  return new Promise(resolve => {
+    if (typeof requestAnimationFrame !== 'undefined') {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
+/**
+ * Find block element by ID
+ */
+export function findBlockElement(container: HTMLElement, blockId: string): HTMLElement | null {
+  return container.querySelector(`[data-block-id="${blockId}"]`);
+}
+
+/**
+ * Get all block elements in order
+ */
+export function getBlockElements(container: HTMLElement): HTMLElement[] {
+  return Array.from(container.querySelectorAll('.md-block'));
+}
+
+/**
+ * Check if incremental update is possible (for backward compatibility)
+ * @deprecated Always returns true now since we use block-ID based updates
+ */
+export function canIncrementalUpdate(container: HTMLElement): boolean {
+  return container.childNodes.length > 0;
 }

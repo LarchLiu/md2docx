@@ -6,7 +6,7 @@ import {
   TextRun,
   ImageRun,
   ExternalHyperlink,
-  IRunOptions,
+  type IRunOptions,
   type ParagraphChild
 } from 'docx';
 import { convertLatex2Math } from './docx-math-converter';
