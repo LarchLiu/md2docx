@@ -137,6 +137,31 @@ describe('markdown-block-splitter', () => {
       const result = splitMarkdownIntoBlocks('- item1\n- item2\n\n```\ncode\n```');
       assert.deepStrictEqual(result, ['- item1\n- item2', '```\ncode\n```']);
     });
+
+    it('should handle Unicode bullet •', () => {
+      const result = splitMarkdownIntoBlocks('\t•\tItem one\n\t•\tItem two\n\t•\tItem three');
+      assert.deepStrictEqual(result, ['\t•\tItem one\n\t•\tItem two\n\t•\tItem three']);
+    });
+
+    it('should handle mixed standard and Unicode bullets', () => {
+      const result = splitMarkdownIntoBlocks('- Standard item\n\t•\tUnicode item\n- Another standard');
+      assert.deepStrictEqual(result, ['- Standard item\n\t•\tUnicode item\n- Another standard']);
+    });
+
+    it('should handle loose list with description lines', () => {
+      const result = splitMarkdownIntoBlocks('\t•\t标题一\n这是描述内容\n\t•\t标题二\n这是另一个描述');
+      assert.deepStrictEqual(result, ['\t•\t标题一\n这是描述内容\n\t•\t标题二\n这是另一个描述']);
+    });
+
+    it('should handle loose list followed by heading', () => {
+      const result = splitMarkdownIntoBlocks('\t•\tItem one\nDescription\n\t•\tItem two\n\n## Heading');
+      assert.deepStrictEqual(result, ['\t•\tItem one\nDescription\n\t•\tItem two', '## Heading']);
+    });
+
+    it('should handle other Unicode bullets ◦ ▪ ○ ●', () => {
+      const result = splitMarkdownIntoBlocks('\t◦\tItem A\n\t▪\tItem B\n\t○\tItem C\n\t●\tItem D');
+      assert.deepStrictEqual(result, ['\t◦\tItem A\n\t▪\tItem B\n\t○\tItem C\n\t●\tItem D']);
+    });
   });
 
   describe('HTML Blocks', () => {

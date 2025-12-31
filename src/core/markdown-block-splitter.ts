@@ -132,12 +132,80 @@ const blockquoteDetector: BlockDetector = {
   }
 };
 
-// List: starts with -, *, +, or 1.
-const LIST_ITEM_REGEX = /^(\s*)(?:[-*+]|\d+\.)\s/;
+// List: starts with -, *, +, •, ◦, ▪, ▸, ►, ○, ●, or 1.
+// Also supports Unicode bullets and multiple space indentation
+const LIST_ITEM_REGEX = /^(\s*)(?:[-*+•◦▪▸►○●]|\d+\.)\s/;
+
+// Check if line is a list item (handles both standard and Unicode bullets)
+function isListItem(line: string): boolean {
+  return LIST_ITEM_REGEX.test(line);
+}
+
+// Check if line is indented content (continuation of list item)
+// Supports both standard (2 spaces/tab) and extended (multiple spaces) indentation
+function isIndentedContent(line: string): boolean {
+  // Standard indentation: 2+ spaces or tab
+  if (line.startsWith('  ') || line.startsWith('\t')) return true;
+  // Extended: line starts with spaces and has non-space content
+  const match = line.match(/^(\s+)\S/);
+  return match !== null && match[1].length >= 2;
+}
+
+// Check if line could be a list continuation (not a new block type)
+function isListContinuation(line: string, lines: string[], index: number): boolean {
+  const trimmed = line.trim();
+  
+  // Empty line is not a continuation (handled separately)
+  if (trimmed === '') return false;
+  
+  // Another list item continues the list
+  if (isListItem(line)) return true;
+  
+  // Indented content continues the list
+  if (isIndentedContent(line)) return true;
+  
+  // Check if this looks like a new block (heading, code fence, etc.)
+  if (/^#{1,6}\s/.test(trimmed)) return false;
+  if (/^(`{3,}|~{3,})/.test(trimmed)) return false;
+  if (trimmed === '$$') return false;
+  if (trimmed.startsWith('|')) return false;
+  if (trimmed.startsWith('>')) return false;
+  
+  // Plain text that doesn't start with indentation - check context
+  // If previous line was a list item with bullet, this might be a description line
+  // Also check if there's another list item coming up (loose list pattern)
+  const prevLine = lines[index - 1];
+  if (prevLine && isListItem(prevLine)) {
+    // This looks like a loose list item description
+    return true;
+  }
+  
+  // Check if this plain text is between list items (continuation of loose list)
+  // Look back to find if we're still within a list context
+  for (let i = index - 1; i >= 0 && i >= index - 5; i--) {
+    const checkLine = lines[i];
+    if (checkLine.trim() === '') continue; // Skip empty lines
+    if (isListItem(checkLine)) {
+      // We found a list item within 5 lines back, check if there's a list item ahead
+      for (let j = index + 1; j < lines.length && j <= index + 3; j++) {
+        if (lines[j].trim() === '') continue;
+        if (isListItem(lines[j])) {
+          // There's a list item ahead, this line is part of the list
+          return true;
+        }
+        break; // Found a non-empty, non-list line
+      }
+      break;
+    }
+    break; // Found a non-list item
+  }
+  
+  return false;
+}
 
 const listDetector: BlockDetector = {
   name: 'list',
-  isStart: (lines, index) => LIST_ITEM_REGEX.test(lines[index]),
+  isStart: (lines, index) => isListItem(lines[index]),
   findEnd: (lines, startIndex) => {
     const startMatch = lines[startIndex].match(LIST_ITEM_REGEX);
     if (!startMatch) return startIndex;
@@ -148,16 +216,17 @@ const listDetector: BlockDetector = {
       const nextTrimmed = nextLine.trim();
       
       // Continue if:
-      // 1. Another list item
+      // 1. Another list item (standard or Unicode bullet)
       // 2. Indented content (continuation)
-      // 3. Empty line followed by list item or indented content
-      if (LIST_ITEM_REGEX.test(nextLine)) {
+      // 3. Plain text continuation after a list item
+      // 4. Empty line followed by list item or indented content
+      if (isListContinuation(nextLine, lines, i + 1)) {
         i++;
       } else if (nextTrimmed === '') {
         // Check if list continues after empty line
         if (i + 2 < lines.length) {
           const afterEmpty = lines[i + 2];
-          if (LIST_ITEM_REGEX.test(afterEmpty) || afterEmpty.startsWith('  ')) {
+          if (isListItem(afterEmpty) || isIndentedContent(afterEmpty)) {
             i++; // Include empty line
           } else {
             break;
@@ -165,9 +234,6 @@ const listDetector: BlockDetector = {
         } else {
           break;
         }
-      } else if (nextLine.startsWith('  ') || nextLine.startsWith('\t')) {
-        // Indented continuation
-        i++;
       } else {
         break;
       }
