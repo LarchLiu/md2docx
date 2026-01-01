@@ -12,7 +12,7 @@ import ExtensionCacheManager from '../../../src/utils/cache-manager';
 import { toSimpleCacheStats } from '../../../src/utils/cache-stats';
 import { bootstrapRenderWorker } from '../../../src/renderers/worker/worker-bootstrap';
 import { RenderChannel } from '../../../src/messaging/channels/render-channel';
-import { BrowserRuntimeTransport } from '../../../chrome/src/transports/chrome-runtime-transport';
+import { ManualDispatchTransport } from './manual-dispatch-transport';
 import type {
   FileState,
   AllFileStates,
@@ -75,9 +75,11 @@ browser.webRequest.onHeadersReceived.addListener(
 // Render Worker Setup (Background Page has DOM, like Chrome Offscreen)
 // ============================================================================
 
-// Render RPC channel - accepts messages targeted to 'background-render'
-// Uses willRespond: true because background needs to send async responses
-const renderChannel = new RenderChannel(new BrowserRuntimeTransport({ willRespond: true }), {
+// Use ManualDispatchTransport instead of BrowserRuntimeTransport to avoid
+// conflicts with the main message listener. Messages are manually dispatched
+// from the main listener when __target === 'background-render'.
+const renderTransport = new ManualDispatchTransport();
+const renderChannel = new RenderChannel(renderTransport, {
   source: 'firefox-background',
   timeoutMs: 300000,
   acceptRequest: (msg) => {
@@ -652,6 +654,16 @@ function createResponseEnvelope(
 browser.runtime.onMessage.addListener((message: BackgroundMessage, sender): Promise<object> | undefined => {
   if (!isRequestEnvelope(message)) {
     return undefined;
+  }
+
+  // Render requests - dispatch to render worker via ManualDispatchTransport
+  const target = (message as { __target?: unknown }).__target;
+  if (target === 'background-render') {
+    return new Promise((resolve) => {
+      renderTransport.dispatch(message, (response) => {
+        resolve(response as object);
+      });
+    });
   }
 
   // Content script injection request
