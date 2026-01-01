@@ -76,7 +76,8 @@ interface RenderMessage {
 }
 
 // Render RPC channel (offscreen only handles messages targeted to it)
-const renderChannel = new RenderChannel(new ChromeRuntimeTransport(), {
+// Uses willRespond: true because render worker needs to send async responses
+const renderChannel = new RenderChannel(new ChromeRuntimeTransport({ willRespond: true }), {
   source: 'chrome-offscreen',
   timeoutMs: 300000,
   acceptRequest: (msg) => {
