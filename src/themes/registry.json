@@ -119,6 +119,13 @@
       "category": "sans-serif",
       "featured": true,
       "order": 17
+    },
+    {
+      "id": "minimal",
+      "file": "minimal.json",
+      "category": "creative",
+      "featured": false,
+      "order": 18
     }
   ],
   "categories": {

@@ -18,8 +18,8 @@
         "fontSize": "28pt",
         "fontWeight": "bold",
         "spacing": {
-          "before": "20pt",
-          "after": "10pt"
+          "before": "24pt",
+          "after": "12pt"
         }
       },
       "h2": {
@@ -34,32 +34,32 @@
         "fontSize": "20pt",
         "fontWeight": "bold",
         "spacing": {
-          "before": "20pt",
-          "after": "10pt"
+          "before": "16pt",
+          "after": "8pt"
         }
       },
       "h4": {
         "fontSize": "17pt",
         "fontWeight": "bold",
         "spacing": {
-          "before": "20pt",
-          "after": "10pt"
+          "before": "14pt",
+          "after": "7pt"
         }
       },
       "h5": {
         "fontSize": "15pt",
         "fontWeight": "bold",
         "spacing": {
-          "before": "20pt",
-          "after": "10pt"
+          "before": "12pt",
+          "after": "6pt"
         }
       },
       "h6": {
         "fontSize": "13.5pt",
         "fontWeight": "bold",
         "spacing": {
-          "before": "20pt",
-          "after": "10pt"
+          "before": "10pt",
+          "after": "5pt"
         }
       }
     },

@@ -10,12 +10,12 @@
   "fontScheme": {
     "body": {
       "fontFamily": "Verdana",
-      "fontSize": "10pt",
+      "fontSize": "11pt",
       "lineHeight": 1.6
     },
     "headings": {
       "h1": {
-        "fontSize": "20pt",
+        "fontSize": "22pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "16pt",
@@ -23,7 +23,7 @@
         }
       },
       "h2": {
-        "fontSize": "17pt",
+        "fontSize": "18pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "14pt",
@@ -31,7 +31,7 @@
         }
       },
       "h3": {
-        "fontSize": "14pt",
+        "fontSize": "15pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "12pt",
@@ -39,7 +39,7 @@
         }
       },
       "h4": {
-        "fontSize": "12pt",
+        "fontSize": "13pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "10pt",
@@ -47,7 +47,7 @@
         }
       },
       "h5": {
-        "fontSize": "11pt",
+        "fontSize": "12pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "8pt",
@@ -55,7 +55,7 @@
         }
       },
       "h6": {
-        "fontSize": "10pt",
+        "fontSize": "11pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "6pt",

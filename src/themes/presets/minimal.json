@@ -1,78 +1,78 @@
 {
-  "id": "technical",
-  "name": "技术文档",
-  "name_en": "Technical",
-  "description": "专为技术文档设计，清晰简洁的极简风格",
-  "description_en": "Designed for technical documentation with clean minimalist style",
+  "id": "minimal",
+  "name": "极简主义",
+  "name_en": "Minimal",
+  "description": "系统字体，最简洁的排版风格，专注内容本身",
+  "description_en": "System font with minimal styling, focus on content itself",
   "author": "Markdown Viewer Extension",
   "version": "1.0.0",
   
   "fontScheme": {
     "body": {
       "fontFamily": "Arial",
-      "fontSize": "11pt",
+      "fontSize": "12pt",
       "lineHeight": 1.5
     },
     "headings": {
       "h1": {
-        "fontSize": "22pt",
-        "fontWeight": "bold",
-        "spacing": {
-          "before": "16pt",
-          "after": "10pt"
-        }
-      },
-      "h2": {
-        "fontSize": "18pt",
+        "fontSize": "20pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "16pt",
           "after": "8pt"
         }
       },
-      "h3": {
-        "fontSize": "15pt",
+      "h2": {
+        "fontSize": "17pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "14pt",
           "after": "7pt"
         }
       },
-      "h4": {
-        "fontSize": "13pt",
+      "h3": {
+        "fontSize": "15pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "12pt",
           "after": "6pt"
         }
       },
-      "h5": {
-        "fontSize": "12pt",
+      "h4": {
+        "fontSize": "13pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "10pt",
           "after": "5pt"
         }
       },
-      "h6": {
-        "fontSize": "11pt",
+      "h5": {
+        "fontSize": "12pt",
         "fontWeight": "bold",
         "spacing": {
           "before": "8pt",
           "after": "4pt"
+        }
+      },
+      "h6": {
+        "fontSize": "12pt",
+        "fontWeight": "bold",
+        "spacing": {
+          "before": "6pt",
+          "after": "3pt"
         }
       }
     },
     "code": {
       "fontFamily": "Monaco",
       "fontSize": "10pt",
-      "background": "#f8f8f8"
+      "background": "#f5f5f5"
     }
   },
   
-  "tableStyle": "grid",
+  "tableStyle": "borderless",
   
   "codeTheme": "light-clean",
   
-  "spacing": "compact"
+  "spacing": "standard"
 }
