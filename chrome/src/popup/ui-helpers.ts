@@ -120,7 +120,8 @@ export async function checkFileAccess(): Promise<void> {
   try {
     // Detect Firefox - it allows file:// access by default with <all_urls> permission
     // Firefox has 'browser' global and navigator.userAgent contains 'Firefox'
-    const isFirefox = typeof browser !== 'undefined' || navigator.userAgent.includes('Firefox');
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const isFirefox = typeof (globalThis as any).browser !== 'undefined' || navigator.userAgent.includes('Firefox');
     if (isFirefox) {
       warningSection.style.display = 'none';
       return;

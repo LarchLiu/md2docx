@@ -8,7 +8,8 @@
 import type { MessageTransport, TransportMeta, Unsubscribe } from '../../../src/messaging/transports/transport';
 
 // Use browser API if available (Firefox), otherwise use chrome API
-const runtime = typeof browser !== 'undefined' ? browser : chrome;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const runtime = typeof (globalThis as any).browser !== 'undefined' ? (globalThis as any).browser : chrome;
 
 export class ChromeRuntimeTransport implements MessageTransport {
   private listener?: (

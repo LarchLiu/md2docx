@@ -94,6 +94,7 @@ export function normalizeMathBlocks(markdown: string): string {
  */
 export class MarkdownDocument {
   private blocks: BlockMeta[] = [];
+  private blockIdMap: Map<string, number> = new Map(); // blockId -> index for O(1) lookup
   private rawContent: string = '';
   private normalizedContent: string = '';
   private idCounter: number = 0;
@@ -104,6 +105,16 @@ export class MarkdownDocument {
   constructor(markdown?: string) {
     if (markdown) {
       this.update(markdown);
+    }
+  }
+
+  /**
+   * Rebuild the blockId -> index map
+   */
+  private rebuildBlockIdMap(): void {
+    this.blockIdMap.clear();
+    for (let i = 0; i < this.blocks.length; i++) {
+      this.blockIdMap.set(this.blocks[i].id, i);
     }
   }
 
@@ -122,10 +133,18 @@ export class MarkdownDocument {
   }
 
   /**
-   * Get block by ID
+   * Get block by ID (O(1) lookup)
    */
   getBlockById(id: string): BlockMeta | undefined {
-    return this.blocks.find(b => b.id === id);
+    const index = this.blockIdMap.get(id);
+    return index !== undefined ? this.blocks[index] : undefined;
+  }
+
+  /**
+   * Get block index by ID (O(1) lookup)
+   */
+  getBlockIndexById(id: string): number {
+    return this.blockIdMap.get(id) ?? -1;
   }
 
   /**
@@ -163,6 +182,127 @@ export class MarkdownDocument {
   }
 
   /**
+   * Get total line count of the document
+   */
+  getTotalLineCount(): number {
+    if (this.blocks.length === 0) return 0;
+    const lastBlock = this.blocks[this.blocks.length - 1];
+    return lastBlock.startLine + lastBlock.lineCount;
+  }
+
+  /**
+   * Get line position info for scroll sync.
+   * Returns the block containing the line and progress within that block.
+   * 
+   * @param line - Source line number (can be fractional for sub-line precision)
+   * @returns Object with block info and progress (0-1) within block, or null if out of range
+   */
+  getLinePosition(line: number): { 
+    block: BlockMeta; 
+    index: number; 
+    progress: number;
+  } | null {
+    if (this.blocks.length === 0 || line < 0) return null;
+
+    // Subtract 0.5 line offset to compensate for block gap (inverse of getLineFromBlockId)
+    const adjustedLine = Math.max(0, line - 0.5);
+
+    // Find the block containing this line
+    for (let i = 0; i < this.blocks.length; i++) {
+      const block = this.blocks[i];
+      const blockEnd = block.startLine + block.lineCount;
+      
+      if (adjustedLine < blockEnd) {
+        // Calculate progress within block
+        const lineOffset = adjustedLine - block.startLine;
+        const progress = block.lineCount > 0 
+          ? Math.max(0, Math.min(1, lineOffset / block.lineCount))
+          : 0;
+        return { block, index: i, progress };
+      }
+    }
+
+    // Line is beyond last block - return last block at 100%
+    const lastIndex = this.blocks.length - 1;
+    return { block: this.blocks[lastIndex], index: lastIndex, progress: 1 };
+  }
+
+  /**
+   * Calculate line number from block index and progress within block.
+   * Inverse of getLinePosition.
+   * 
+   * @param index - Block index
+   * @param progress - Progress within block (0-1)
+   * @returns Line number (with fractional part)
+   */
+  getLineFromPosition(index: number, progress: number): number {
+    if (index < 0 || index >= this.blocks.length) return 0;
+    
+    const block = this.blocks[index];
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    return block.startLine + clampedProgress * block.lineCount;
+  }
+
+  /**
+   * Find surrounding blocks for a given line (for interpolation).
+   * Returns previous and next blocks relative to the line.
+   */
+  getSurroundingBlocks(line: number): {
+    previous?: { block: BlockMeta; index: number };
+    next?: { block: BlockMeta; index: number };
+  } {
+    if (this.blocks.length === 0) return {};
+
+    let previous: { block: BlockMeta; index: number } | undefined;
+    
+    for (let i = 0; i < this.blocks.length; i++) {
+      const block = this.blocks[i];
+      
+      if (block.startLine > line) {
+        return { previous, next: { block, index: i } };
+      }
+      
+      previous = { block, index: i };
+    }
+
+    return { previous };
+  }
+
+  /**
+   * Calculate source line number from block ID and progress within block.
+   * Used by scroll sync: DOM provides blockId + pixel progress, we compute line.
+   * 
+   * @param blockId - Block ID from DOM element's data-block-id
+   * @param progress - Progress within block (0-1) based on pixel position
+   * @returns Line number (with fractional part), or null if block not found
+   */
+  getLineFromBlockId(blockId: string, progress: number = 0): number | null {
+    const block = this.getBlockById(blockId);
+    if (!block) return null;
+    
+    const clampedProgress = Math.max(0, Math.min(1, progress));
+    // Add 0.5 line offset to compensate for block gap
+    return block.startLine + clampedProgress * block.lineCount + 0.5;
+  }
+
+  /**
+   * Get block position for a source line number.
+   * Used by scroll sync: editor provides line, we compute blockId + progress for DOM scroll.
+   * 
+   * @param line - Source line number (can be fractional)
+   * @returns Object with blockId and progress (0-1) within block, or null if out of range
+   */
+  getBlockPositionFromLine(line: number): { blockId: string; progress: number } | null {
+    const pos = this.getLinePosition(line);
+    if (!pos) return null;
+    
+    return {
+      blockId: pos.block.id,
+      progress: pos.progress,
+    };
+  }
+
+  /**
    * Update document content and return DOM commands for incremental update
    */
   update(markdown: string): DOMCommandResult {
@@ -176,10 +316,9 @@ export class MarkdownDocument {
     
     // Build new block metadata
     const newBlocks: BlockMeta[] = parsedBlocks.map((block, index) => {
-      const nextBlock = parsedBlocks[index + 1];
-      const lineCount = nextBlock 
-        ? nextBlock.startLine - block.startLine 
-        : block.content.split('\n').length;
+      // Use actual content line count, not distance to next block
+      // This avoids counting trailing empty lines that aren't rendered
+      const lineCount = block.content.split('\n').length;
       const blockHash = hashCode(block.content);
       
       return {
@@ -198,6 +337,7 @@ export class MarkdownDocument {
         newBlocks[i].id = this.generateNewId();
       }
       this.blocks = newBlocks;
+      this.rebuildBlockIdMap();
       
       return {
         commands: [{ type: 'clear' }],
@@ -212,6 +352,7 @@ export class MarkdownDocument {
     const result = this.generateDOMCommands(oldBlocks, newBlocks, diffOps);
     
     this.blocks = newBlocks;
+    this.rebuildBlockIdMap();
     return result;
   }
 
@@ -532,48 +673,6 @@ export class MarkdownDocument {
     doc.idCounter = data.idCounter;
     return doc;
   }
-}
-
-/**
- * Chunk blocks for streaming rendering
- */
-export interface Chunk {
-  blocks: BlockMeta[];
-  startIndex: number;
-}
-
-/**
- * Split document blocks into chunks for streaming
- */
-export function chunkBlocks(blocks: readonly BlockMeta[], initialChunkSize: number = 50): Chunk[] {
-  const getTargetSize = (chunkIndex: number): number => {
-    return initialChunkSize * Math.pow(2, chunkIndex);
-  };
-
-  const chunks: Chunk[] = [];
-  let currentBlocks: BlockMeta[] = [];
-  let currentLineCount = 0;
-  let startIndex = 0;
-
-  for (let i = 0; i < blocks.length; i++) {
-    const block = blocks[i];
-    currentBlocks.push(block);
-    currentLineCount += block.lineCount;
-
-    const targetSize = getTargetSize(chunks.length);
-    if (currentLineCount >= targetSize) {
-      chunks.push({ blocks: [...currentBlocks], startIndex });
-      startIndex = i + 1;
-      currentBlocks = [];
-      currentLineCount = 0;
-    }
-  }
-
-  if (currentBlocks.length > 0) {
-    chunks.push({ blocks: currentBlocks, startIndex });
-  }
-
-  return chunks;
 }
 
 /**

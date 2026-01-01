@@ -53,24 +53,17 @@ export type RenderMarkdownOptions = {
   clearContainer?: boolean;
 
   /**
-   * Whether to process async tasks immediately.
-   * If false, caller can run taskManager.processAll() later.
-   */
-  processTasks?: boolean;
-
-  /**
    * When true, use incremental DOM diffing instead of full re-render.
    * This preserves already-rendered plugin content when possible.
    * @deprecated Now always uses block-ID based incremental update
    */
   incrementalUpdate?: boolean;
 
+  /** Called when headings are extracted (may be called multiple times during streaming) */
   onHeadings?: (headings: HeadingInfo[]) => void;
-  onProgress?: (completed: number, total: number) => void;
-  onBeforeTasks?: () => void;
-  onAfterTasks?: () => void;
+  
+  /** Called when initial DOM streaming is complete (before async tasks) */
   onStreamingComplete?: () => void;
-  postProcess?: (container: Element) => Promise<void> | void;
 };
 
 // Global document instance for incremental updates
@@ -112,13 +105,8 @@ export async function renderMarkdownDocument(options: RenderMarkdownOptions): Pr
     translate,
     taskManager: providedTaskManager,
     clearContainer = true,
-    processTasks = true,
     onHeadings,
-    onProgress,
-    onBeforeTasks,
-    onAfterTasks,
     onStreamingComplete,
-    postProcess,
   } = options;
 
   const taskManager = providedTaskManager ?? new AsyncTaskManager(translate);
@@ -164,24 +152,9 @@ export async function renderMarkdownDocument(options: RenderMarkdownOptions): Pr
     };
   }
 
-  // Process async tasks
-  if (processTasks) {
-    onBeforeTasks?.();
-    await taskManager.processAll((completed, total) => {
-      onProgress?.(completed, total);
-    });
-    onAfterTasks?.();
-
-    if (taskManager.isAborted()) {
-      return {
-        title: extractTitle(markdown),
-        headings,
-        taskManager,
-      };
-    }
-
-    await postProcess?.(container);
-  }
+  // Async tasks (diagrams, etc.) are NOT processed here.
+  // Caller should call taskManager.processAll() after this function returns.
+  // This allows the caller to set scroll position before async tasks modify DOM.
 
   return {
     title: extractTitle(markdown),

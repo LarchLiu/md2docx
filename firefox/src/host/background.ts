@@ -629,20 +629,18 @@ async function handleContentScriptInjection(tabId: number): Promise<void> {
 function createResponseEnvelope(
   requestId: string,
   result: { ok: true; data?: unknown } | { ok: false; errorMessage: string }
-): object {
+): { id: string; ok: boolean; data?: unknown; errorMessage?: string } {
   if (result.ok) {
     return {
-      type: 'RESPONSE',
-      requestId,
+      id: requestId,
       ok: true,
       data: result.data,
     };
   }
   return {
-    type: 'RESPONSE',
-    requestId,
+    id: requestId,
     ok: false,
-    error: { message: result.errorMessage },
+    errorMessage: result.errorMessage,
   };
 }
 

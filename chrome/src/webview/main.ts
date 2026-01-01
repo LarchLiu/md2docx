@@ -23,7 +23,16 @@ const renderer = new ExtensionRenderer(cacheManager);
 window.extensionRenderer = renderer;
 
 // Create plugin renderer from ExtensionRenderer
-const pluginRenderer = createPluginRenderer((type, content) => renderer.render(type, content));
+const pluginRenderer = createPluginRenderer(async (type, content) => {
+  const result = await renderer.render(type, content);
+  return {
+    base64: result.base64 || '',
+    width: result.width,
+    height: result.height,
+    format: result.format,
+    error: result.error,
+  };
+});
 
 // Start the viewer with Chrome-specific configuration
 startViewer({

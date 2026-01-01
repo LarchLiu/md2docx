@@ -13,11 +13,9 @@ import { wrapFileContent } from '../../../src/utils/file-wrapper';
 
 import type { PluginRenderer, RendererThemeConfig, PlatformAPI } from '../../../src/types/index';
 
-import { renderMarkdownDocument } from '../../../src/core/viewer/viewer-controller';
+import { renderMarkdownDocument, getDocument } from '../../../src/core/viewer/viewer-controller';
+import { createScrollSyncController, type ScrollSyncController } from '../../../src/core/line-based-scroll';
 import { escapeHtml } from '../../../src/core/markdown-processor';
-
-import { BackgroundCacheManagerProxy } from '../../../src/core/cache-proxy';
-import { createScrollManager } from '../../../src/core/scroll-manager';
 import { createFileStateManager, getCurrentDocumentUrl, saveToHistory } from '../../../src/core/file-state';
 import { updateProgress, showProcessingIndicator, hideProcessingIndicator } from './ui/progress-indicator';
 import { createTocManager } from './ui/toc-manager';
@@ -104,9 +102,29 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
   // Initialize file state manager
   const { saveFileState, getFileState } = createFileStateManager(platform);
 
-  // Initialize scroll manager (line-based)
-  const scrollManager = createScrollManager(platform, getCurrentDocumentUrl);
-  const { cancelScrollRestore, restoreScrollPosition, getSavedScrollLine, getCurrentScrollLine } = scrollManager;
+  // Initialize scroll sync controller (line-based, using shared implementation)
+  let scrollSyncController: ScrollSyncController | null = null;
+  
+  function initScrollSyncController(): void {
+    const container = document.getElementById('markdown-content');
+    if (!container) {
+      console.warn('[Chrome] markdown-content container not found!');
+      return;
+    }
+    
+    scrollSyncController = createScrollSyncController({
+      container,
+      getLineMapper: getDocument,
+      useWindowScroll: true,  // Chrome uses window scroll
+      userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
+      onUserScroll: (line) => {
+        // Save scroll position for history/restore
+        saveFileState({ scrollLine: line });
+      },
+    });
+    
+    scrollSyncController.start();
+  }
 
   // Initialize TOC manager
   const tocManager = createTocManager(saveFileState, getFileState);
@@ -164,7 +182,9 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     getFileState,
     rawMarkdown,
     docxExporter,
-    cancelScrollRestore,
+    cancelScrollRestore: () => {
+      // Cancel scroll restoration (not needed with scroll sync controller)
+    },
     updateActiveTocItem,
     toolbarPrintDisabledTitle,
   });
@@ -184,9 +204,12 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     document.body.classList.add('toc-hidden');
   }
 
+  // Initialize scroll sync controller immediately after DOM is ready
+  initScrollSyncController();
+
   // Wait a bit for DOM to be ready, then start processing
   setTimeout(async () => {
-    const savedScrollLine = await getSavedScrollLine();
+    const savedScrollLine = initialState.scrollLine ?? 0;
 
     toolbarManager.initializeToolbar();
 
@@ -198,13 +221,14 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     await setupResponsiveToc();
   }, 100);
 
-  // Listen for scroll events and save line number to background script
+  // Listen for scroll events and save line number
+  // Note: ScrollSyncController handles most scroll tracking, but we also listen for manual saves
   let scrollTimeout: ReturnType<typeof setTimeout>;
   window.addEventListener('scroll', () => {
     updateActiveTocItem();
     clearTimeout(scrollTimeout);
     scrollTimeout = setTimeout(() => {
-      const currentLine = getCurrentScrollLine();
+      const currentLine = scrollSyncController?.getCurrentLine() ?? 0;
       saveFileState({ scrollLine: currentLine });
     }, 300);
   });
@@ -215,6 +239,11 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
       // eslint-disable-next-line no-console
       console.error('markdown-content div not found!');
       return;
+    }
+
+    // Set target scroll line immediately - MutationObserver will auto-reposition when DOM changes
+    if (scrollSyncController) {
+      scrollSyncController.setTargetLine(savedScrollLine);
     }
 
     // Load and apply theme
@@ -241,16 +270,14 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
       renderer: pluginRenderer,
       translate,
       clearContainer: true,
-      processTasks: false,
       onHeadings: () => {
         // Update TOC progressively as chunks are rendered
         void generateTOC();
       },
       onStreamingComplete: () => {
         // Streaming is complete, all initial DOM content is ready
-        // Apply zoom and restore scroll line now
+        // Apply zoom (scroll is handled by MutationObserver)
         toolbarManager.applyZoom(toolbarManager.getZoomLevel(), false);
-        restoreScrollPosition(savedScrollLine);
         setTimeout(updateActiveTocItem, 100);
       },
     });
@@ -319,7 +346,8 @@ export function createPluginRenderer(
 ): PluginRenderer {
   return {
     render: async (type, content, _context) => {
-      const result = await renderFn(type, content);
+      const contentStr = typeof content === 'string' ? content : JSON.stringify(content);
+      const result = await renderFn(type, contentStr);
 
       if (result && result.error) {
         throw new Error(result.error || 'Render failed');

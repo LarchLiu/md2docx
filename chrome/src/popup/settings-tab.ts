@@ -36,12 +36,13 @@ function safeSendTabMessage(tabId: number, message: unknown): void {
 async function safeQueryTabs(query: chrome.tabs.QueryInfo): Promise<chrome.tabs.Tab[]> {
   return new Promise((resolve) => {
     try {
-      const result = chrome.tabs.query(query, (tabs) => {
+      // Chrome MV3 may return Promise, MV2/Firefox uses callback
+      const maybePromise = chrome.tabs.query(query, (tabs) => {
         resolve(tabs || []);
-      });
-      // Chrome MV3 returns Promise
-      if (result && typeof (result as Promise<chrome.tabs.Tab[]>).then === 'function') {
-        (result as Promise<chrome.tabs.Tab[]>).then(resolve).catch(() => resolve([]));
+      }) as unknown;
+      // Check if result is a Promise (Chrome MV3)
+      if (maybePromise && typeof (maybePromise as Promise<chrome.tabs.Tab[]>).then === 'function') {
+        (maybePromise as Promise<chrome.tabs.Tab[]>).then(resolve).catch(() => resolve([]));
       }
     } catch {
       resolve([]);

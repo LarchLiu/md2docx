@@ -15,7 +15,7 @@ import {
   type FontConfig
 } from '../../../src/utils/theme-to-css';
 import { AsyncTaskManager } from '../../../src/core/markdown-processor';
-import { renderMarkdownDocument } from '../../../src/core/viewer/viewer-controller';
+import { renderMarkdownDocument, getDocument } from '../../../src/core/viewer/viewer-controller';
 import { createScrollSyncController, type ScrollSyncController } from '../../../src/core/line-based-scroll';
 import type { PluginRenderer } from '../../../src/types/index';
 import type { PlatformBridgeAPI } from '../../../src/types/index';
@@ -126,6 +126,13 @@ async function initialize(): Promise<void> {
       console.warn('[Mobile] Render frame pre-init failed:', err?.message, err?.stack);
     });
 
+    // Initialize scroll sync controller FIRST (before message handlers)
+    // Uses #markdown-content as container, window scroll for mobile
+    initScrollSyncController();
+
+    // Set up link click handling via event delegation
+    setupLinkHandling();
+
     // Set up message handlers from host app (Flutter)
     setupMessageHandlers();
 
@@ -134,6 +141,30 @@ async function initialize(): Promise<void> {
   } catch (error) {
     console.error('[Mobile] Initialization failed:', error);
   }
+}
+
+/**
+ * Initialize scroll sync controller (singleton, created once at startup)
+ */
+function initScrollSyncController(): void {
+  const container = document.getElementById('markdown-content');
+  if (!container) {
+    console.warn('[Mobile] markdown-content container not found!');
+    return;
+  }
+
+  scrollSyncController = createScrollSyncController({
+    container,
+    getLineMapper: getDocument,
+    useWindowScroll: true,  // Mobile uses window scroll
+    userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
+    onUserScroll: (line) => {
+      // Report scroll position to host app for saving
+      bridge.postMessage('SCROLL_LINE_CHANGED', { line });
+    },
+  });
+
+  scrollSyncController.start();
 }
 
 /**
@@ -192,15 +223,13 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
     currentTaskManager = null;
   }
   
-  // Reset scroll sync controller for new file
-  scrollSyncController?.dispose();
-  scrollSyncController = null;
+  // Set target scroll line immediately - MutationObserver will auto-reposition when DOM changes
+  if (scrollSyncController) {
+    scrollSyncController.setTargetLine(scrollLine ?? 0);
+  }
 
   currentMarkdown = content;
   currentFilename = filename || 'document.md';
-  
-  // Saved scroll position (line number)
-  const savedScrollLine = scrollLine ?? 0;
 
   try {
     // If theme data is provided with content, set it first (avoids race condition)
@@ -287,17 +316,8 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
         translate: (key: string, subs?: string | string[]) => Localization.translate(key, subs),
         taskManager,
         clearContainer: false,
-        processTasks: true,
         onHeadings: (headings) => {
           bridge.postMessage('HEADINGS_UPDATED', headings);
-        },
-        onProgress: (completedCount, total) => {
-          if (!taskManager.isAborted()) {
-            bridge.postMessage('RENDER_PROGRESS', { completed: completedCount, total });
-          }
-        },
-        postProcess: async (el) => {
-          await postProcessContent(el);
         },
       });
 
@@ -306,24 +326,13 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
       }
 
       titleForHost = renderResult.title || currentFilename;
-      
-      // Initialize scroll sync controller after content is rendered
-      scrollSyncController = createScrollSyncController({
-        container: document.documentElement,
-        useWindowScroll: true,
-        onUserScroll: (line) => {
-          bridge.postMessage('SCROLL_LINE_CHANGED', { line });
-        },
+
+      // Process async tasks after initial render (same pattern as Chrome)
+      await renderResult.taskManager.processAll((completed, total) => {
+        if (!taskManager.isAborted()) {
+          bridge.postMessage('RENDER_PROGRESS', { completed, total });
+        }
       });
-      scrollSyncController.start();
-      
-      // Restore saved scroll position
-      if (savedScrollLine > 0) {
-        // Delay to ensure DOM is fully rendered
-        requestAnimationFrame(() => {
-          scrollSyncController?.setTargetLine(savedScrollLine);
-        });
-      }
     }
 
     // Clear task manager reference after successful completion
@@ -347,37 +356,35 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
 }
 
 /**
- * Post-process rendered content
+ * Set up link click handling via event delegation
  */
-async function postProcessContent(container: Element): Promise<void> {
-  // Handle all links
-  const links = container.querySelectorAll('a[href]');
-  for (const link of links) {
-    const anchor = link as HTMLAnchorElement;
+function setupLinkHandling(): void {
+  document.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement;
+    const anchor = target.closest('a[href]') as HTMLAnchorElement | null;
+    if (!anchor) return;
+
     const href = anchor.getAttribute('href') || '';
-    
-    link.addEventListener('click', (e) => {
-      e.preventDefault();
-      
-      // External links (http/https) - open in system browser
-      if (href.startsWith('http://') || href.startsWith('https://')) {
-        bridge.postMessage('OPEN_URL', { url: href });
+    e.preventDefault();
+
+    // External links (http/https) - open in system browser
+    if (href.startsWith('http://') || href.startsWith('https://')) {
+      bridge.postMessage('OPEN_URL', { url: href });
+    }
+    // Relative links
+    else {
+      // Check if it's a markdown file
+      const isMarkdown = href.endsWith('.md') || href.endsWith('.markdown');
+
+      if (isMarkdown) {
+        // Load markdown file internally
+        bridge.postMessage('LOAD_RELATIVE_MARKDOWN', { path: href });
+      } else {
+        // For other relative files (images, etc.), try to open with system handler
+        bridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
       }
-      // Relative links
-      else {
-        // Check if it's a markdown file
-        const isMarkdown = href.endsWith('.md') || href.endsWith('.markdown');
-        
-        if (isMarkdown) {
-          // Load markdown file internally
-          bridge.postMessage('LOAD_RELATIVE_MARKDOWN', { path: href });
-        } else {
-          // For other relative files (images, etc.), try to open with system handler
-          bridge.postMessage('OPEN_RELATIVE_FILE', { path: href });
-        }
-      }
-    });
-  }
+    }
+  });
 }
 
 /**

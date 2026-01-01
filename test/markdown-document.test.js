@@ -6,7 +6,6 @@ import {
   normalizeMathBlocks,
   extractTitle,
   extractHeadingsFromBlocks,
-  chunkBlocks,
 } from '../src/core/markdown-document.ts';
 
 describe('markdown-document', () => {
@@ -266,43 +265,214 @@ Para 3`);
     });
   });
 
-  describe('chunkBlocks', () => {
-    it('should create single chunk for small content', () => {
-      const doc = new MarkdownDocument('# Title\n\nParagraph');
-      const chunks = chunkBlocks(doc.getBlocks());
-      assert.strictEqual(chunks.length, 1);
-      assert.strictEqual(chunks[0].startIndex, 0);
+  describe('Line Position Mapping', () => {
+    it('should get total line count', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      assert.strictEqual(doc.getTotalLineCount(), 5);
     });
 
-    it('should track start indices', () => {
-      // Create many blocks
-      const lines = [];
-      for (let i = 0; i < 100; i++) {
-        lines.push(`Paragraph ${i}`);
-        lines.push('');
-      }
-      const doc = new MarkdownDocument(lines.join('\n'));
-      const chunks = chunkBlocks(doc.getBlocks(), 10);
+    it('should get line position at block start', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
       
-      // Verify start indices are correct
-      let expectedStart = 0;
-      for (const chunk of chunks) {
-        assert.strictEqual(chunk.startIndex, expectedStart);
-        expectedStart += chunk.blocks.length;
+      const pos0 = doc.getLinePosition(0);
+      assert.strictEqual(pos0?.index, 0);
+      assert.strictEqual(pos0?.progress, 0);
+      
+      const pos2 = doc.getLinePosition(2);
+      assert.strictEqual(pos2?.index, 1);
+      assert.strictEqual(pos2?.progress, 0);
+      
+      const pos4 = doc.getLinePosition(4);
+      assert.strictEqual(pos4?.index, 2);
+      assert.strictEqual(pos4?.progress, 0);
+    });
+
+    it('should get line position within block', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      // Title block has lineCount=1 (only line 0)
+      // Line 1 (empty) is between blocks, maps to next block (Para 1)
+      const pos1 = doc.getLinePosition(1);
+      assert.strictEqual(pos1?.index, 1);  // Maps to block 1
+      assert.strictEqual(pos1?.progress, 0); // At start of block 1
+    });
+
+    it('should handle fractional line numbers', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      // Para 1 at line 2, lineCount=1 (only actual content line)
+      const pos = doc.getLinePosition(2.5);
+      assert.strictEqual(pos?.index, 1);
+      assert.ok(Math.abs(pos?.progress - 0.5) < 0.01); // 0.5/1 = 0.5
+    });
+
+    it('should convert position back to line (roundtrip)', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2\n\nPara 3');
+      
+      // Test lines that are at block starts (roundtrip is exact)
+      for (const testLine of [0, 2, 4, 6]) {
+        const pos = doc.getLinePosition(testLine);
+        assert.ok(pos, `Should find position for line ${testLine}`);
+        const recovered = doc.getLineFromPosition(pos.index, pos.progress);
+        assert.ok(Math.abs(recovered - testLine) < 0.01, `Roundtrip failed for line ${testLine}`);
       }
     });
 
-    it('should respect chunk size boundaries', () => {
-      // Create content that should span multiple chunks
-      const lines = [];
-      for (let i = 0; i < 200; i++) {
-        lines.push(`Line ${i}`);
-        lines.push('');
-      }
-      const doc = new MarkdownDocument(lines.join('\n'));
-      const chunks = chunkBlocks(doc.getBlocks(), 20);
+    it('should update line positions after insert', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
       
-      assert.ok(chunks.length > 1, 'Should create multiple chunks');
+      // Before: Para 2 at line 4
+      let pos = doc.getLinePosition(4);
+      assert.strictEqual(pos?.block.content, 'Para 2');
+      
+      // Insert New Para
+      doc.update('# Title\n\nPara 1\n\nNew Para\n\nPara 2');
+      
+      // After: Para 2 should be at line 6, New Para at line 4
+      pos = doc.getLinePosition(4);
+      assert.strictEqual(pos?.block.content, 'New Para');
+      
+      pos = doc.getLinePosition(6);
+      assert.strictEqual(pos?.block.content, 'Para 2');
+    });
+
+    it('should update line positions after delete', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2\n\nPara 3');
+      
+      // Before: Para 3 at line 6
+      let pos = doc.getLinePosition(6);
+      assert.strictEqual(pos?.block.content, 'Para 3');
+      
+      // Delete Para 2
+      doc.update('# Title\n\nPara 1\n\nPara 3');
+      
+      // After: Para 3 should be at line 4
+      pos = doc.getLinePosition(4);
+      assert.strictEqual(pos?.block.content, 'Para 3');
+    });
+
+    it('should get surrounding blocks', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      
+      const s0 = doc.getSurroundingBlocks(0);
+      assert.strictEqual(s0.previous?.block.content, '# Title');
+      assert.strictEqual(s0.next?.block.content, 'Para 1');
+      
+      const s3 = doc.getSurroundingBlocks(3);
+      assert.strictEqual(s3.previous?.block.content, 'Para 1');
+      assert.strictEqual(s3.next?.block.content, 'Para 2');
+      
+      const s10 = doc.getSurroundingBlocks(10);
+      assert.strictEqual(s10.previous?.block.content, 'Para 2');
+      assert.strictEqual(s10.next, undefined);
+    });
+
+    it('should handle empty document', () => {
+      const doc = new MarkdownDocument();
+      
+      assert.strictEqual(doc.getTotalLineCount(), 0);
+      assert.strictEqual(doc.getLinePosition(0), null);
+      assert.deepStrictEqual(doc.getSurroundingBlocks(0), {});
+    });
+
+    it('should convert blockId + progress to line number', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      const blocks = doc.getBlocks();
+      
+      // Block 0 (Title): startLine=0, lineCount=1 (only actual content line)
+      assert.strictEqual(doc.getLineFromBlockId(blocks[0].id, 0), 0);
+      assert.strictEqual(doc.getLineFromBlockId(blocks[0].id, 0.5), 0.5);
+      assert.strictEqual(doc.getLineFromBlockId(blocks[0].id, 1), 1);
+      
+      // Block 1 (Para 1): startLine=2, lineCount=1
+      assert.strictEqual(doc.getLineFromBlockId(blocks[1].id, 0), 2);
+      assert.strictEqual(doc.getLineFromBlockId(blocks[1].id, 0.5), 2.5);
+      
+      // Block 2 (Para 2): startLine=4, lineCount=1
+      assert.strictEqual(doc.getLineFromBlockId(blocks[2].id, 0), 4);
+      
+      // Non-existent block
+      assert.strictEqual(doc.getLineFromBlockId('non-existent', 0), null);
+    });
+
+    it('should convert line number to blockId + progress', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      const blocks = doc.getBlocks();
+      
+      // Line 0 -> block 0, progress 0
+      let pos = doc.getBlockPositionFromLine(0);
+      assert.strictEqual(pos?.blockId, blocks[0].id);
+      assert.strictEqual(pos?.progress, 0);
+      
+      // Line 1 -> block 1, progress 0 (empty line maps to next block)
+      pos = doc.getBlockPositionFromLine(1);
+      assert.strictEqual(pos?.blockId, blocks[1].id);
+      assert.strictEqual(pos?.progress, 0);
+      
+      // Line 2 -> block 1, progress 0
+      pos = doc.getBlockPositionFromLine(2);
+      assert.strictEqual(pos?.blockId, blocks[1].id);
+      assert.strictEqual(pos?.progress, 0);
+      
+      // Line 4 -> block 2, progress 0
+      pos = doc.getBlockPositionFromLine(4);
+      assert.strictEqual(pos?.blockId, blocks[2].id);
+      assert.strictEqual(pos?.progress, 0);
+    });
+
+    it('should maintain blockId mapping after incremental update', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      const initialBlocks = doc.getBlocks();
+      const para2Id = initialBlocks[2].id;
+      
+      // Initially Para 2 is at line 4
+      assert.strictEqual(doc.getLineFromBlockId(para2Id, 0), 4);
+      
+      // Insert a new paragraph
+      doc.update('# Title\n\nPara 1\n\nNew Para\n\nPara 2');
+      
+      // Para 2 keeps the same ID but now at line 6
+      assert.strictEqual(doc.getLineFromBlockId(para2Id, 0), 6);
+      
+      // Verify roundtrip: line 6 -> para2Id
+      const pos = doc.getBlockPositionFromLine(6);
+      assert.strictEqual(pos?.blockId, para2Id);
+      assert.strictEqual(pos?.progress, 0);
+    });
+
+    it('should roundtrip blockId + progress <-> line', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2\n\nPara 3');
+      
+      // Test block start lines (roundtrip is exact for these)
+      for (const testLine of [0, 2, 4, 6]) {
+        const pos = doc.getBlockPositionFromLine(testLine);
+        assert.ok(pos, `Should find position for line ${testLine}`);
+        const recovered = doc.getLineFromBlockId(pos.blockId, pos.progress);
+        assert.ok(Math.abs(recovered - testLine) < 0.01, `Roundtrip failed for line ${testLine}`);
+      }
+    });
+
+    it('should handle fractional line numbers in both directions', () => {
+      const doc = new MarkdownDocument('# Title\n\nPara 1\n\nPara 2');
+      const blocks = doc.getBlocks();
+      
+      // Test fractional progress -> fractional line
+      // Block 0 has lineCount=1, so progress 0.25 = line 0.25
+      const line1 = doc.getLineFromBlockId(blocks[0].id, 0.25);
+      assert.ok(Math.abs(line1 - 0.25) < 0.01, 'progress 0.25 should give line 0.25');
+      
+      // Block 1 has startLine=2, lineCount=1, so progress 0.75 = line 2.75
+      const line2 = doc.getLineFromBlockId(blocks[1].id, 0.75);
+      assert.ok(Math.abs(line2 - 2.75) < 0.01, 'progress 0.75 should give line 2.75');
+      
+      // Test fractional line -> fractional progress
+      // Line 0.5 is in block 0 (lines 0-1), progress = 0.5/1 = 0.5
+      const pos1 = doc.getBlockPositionFromLine(0.5);
+      assert.strictEqual(pos1?.blockId, blocks[0].id);
+      assert.ok(Math.abs(pos1?.progress - 0.5) < 0.01, 'line 0.5 should give progress 0.5');
+      
+      // Line 2.25 is in block 1 (lines 2-3), progress = 0.25/1 = 0.25
+      const pos2 = doc.getBlockPositionFromLine(2.25);
+      assert.strictEqual(pos2?.blockId, blocks[1].id);
+      assert.ok(Math.abs(pos2?.progress - 0.25) < 0.01, 'line 2.25 should give progress 0.25');
     });
   });
 

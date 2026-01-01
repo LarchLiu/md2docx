@@ -5,8 +5,6 @@ import {
   normalizeMathBlocks,
   splitMarkdownIntoBlocks,
   splitMarkdownIntoBlocksWithLines,
-  splitMarkdownIntoChunks,
-  splitMarkdownIntoChunksWithLines,
   escapeHtml,
   processTablesForWordCompatibility,
   extractTitle,
@@ -124,57 +122,6 @@ describe('markdown-processor', () => {
 
     it('should extract first h1 when multiple exist', () => {
       assert.strictEqual(extractTitle('# First\n# Second'), 'First');
-    });
-  });
-
-  describe('splitMarkdownIntoChunks', () => {
-    it('should create single chunk for small content', () => {
-      const result = splitMarkdownIntoChunks('# Title\n\nShort text');
-      assert.strictEqual(result.length, 1);
-    });
-
-    it('should preserve block content', () => {
-      const result = splitMarkdownIntoChunks('# Title\n\nParagraph');
-      assert.ok(result[0].includes('# Title'));
-      assert.ok(result[0].includes('Paragraph'));
-    });
-
-    it('should handle empty input', () => {
-      const result = splitMarkdownIntoChunks('');
-      assert.strictEqual(result.length, 0);
-    });
-  });
-
-  describe('splitMarkdownIntoChunksWithLines', () => {
-    it('should include line info in chunks', () => {
-      const result = splitMarkdownIntoChunksWithLines('# Title\n\nParagraph');
-      assert.strictEqual(result.length, 1);
-      assert.ok(result[0].blocks.length >= 1);
-      assert.strictEqual(result[0].blocks[0].startLine, 0);
-    });
-
-    it('should create multiple chunks for large content', () => {
-      // Create content with many lines (> 50 lines per block)
-      const lines = [];
-      for (let i = 0; i < 100; i++) {
-        lines.push(`Paragraph ${i}`);
-        lines.push('');
-      }
-      const result = splitMarkdownIntoChunksWithLines(lines.join('\n'));
-      assert.ok(result.length >= 1, 'Should have at least one chunk');
-    });
-
-    it('should track line numbers across chunks', () => {
-      const md = '# Title\n\nPara 1\n\nPara 2\n\nPara 3';
-      const result = splitMarkdownIntoChunksWithLines(md);
-      const allBlocks = result.flatMap((c) => c.blocks);
-      // Check line numbers are in order
-      for (let i = 1; i < allBlocks.length; i++) {
-        assert.ok(
-          allBlocks[i].startLine > allBlocks[i - 1].startLine,
-          'Line numbers should be increasing'
-        );
-      }
     });
   });
 
@@ -406,46 +353,6 @@ Paragraph 3`;
       assert.strictEqual(blocks1[0].content, blocks2[0].content, 'Title unchanged');
       assert.notStrictEqual(blocks1[1].content, blocks2[1].content, 'Code block changed');
       assert.strictEqual(blocks1[2].content, blocks2[2].content, 'Text unchanged');
-    });
-  });
-
-  describe('Streaming Chunk Boundaries', () => {
-    it('should not break code blocks across chunks', () => {
-      // Create markdown with code block
-      const md = '# Title\n\n' + '```js\n' + 'x'.repeat(1000) + '\n```\n\nAfter';
-      const chunks = splitMarkdownIntoChunksWithLines(md);
-
-      // Find which chunk contains the code block
-      for (const chunk of chunks) {
-        for (const block of chunk.blocks) {
-          if (block.content.includes('```')) {
-            // Code block should be complete
-            const openCount = (block.content.match(/```/g) || []).length;
-            assert.strictEqual(openCount, 2, 'Code block should have opening and closing');
-          }
-        }
-      }
-    });
-
-    it('should not break tables across chunks', () => {
-      const md = '| a | b |\n|---|---|\n| 1 | 2 |\n| 3 | 4 |';
-      const chunks = splitMarkdownIntoChunksWithLines(md);
-
-      // Table should be in one block
-      assert.strictEqual(chunks.length, 1);
-      assert.strictEqual(chunks[0].blocks.length, 1);
-      assert.ok(chunks[0].blocks[0].content.includes('| a | b |'));
-      assert.ok(chunks[0].blocks[0].content.includes('| 3 | 4 |'));
-    });
-
-    it('should not break math blocks across chunks', () => {
-      const md = '$$\na + b\n= c + d\n$$';
-      const chunks = splitMarkdownIntoChunksWithLines(md);
-
-      assert.strictEqual(chunks[0].blocks.length, 1);
-      const block = chunks[0].blocks[0].content;
-      const dollarCount = (block.match(/\$\$/g) || []).length;
-      assert.strictEqual(dollarCount, 2, 'Math block should be complete');
     });
   });
 

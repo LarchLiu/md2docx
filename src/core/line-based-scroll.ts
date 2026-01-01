@@ -1,166 +1,26 @@
 /**
  * Line-Based Scroll Manager
  * 
- * Unified scroll position management based on source line numbers.
- * More stable than absolute pixel positions because line numbers
- * are tied to content, not layout.
- * 
- * Used by both Chrome extension and VSCode extension.
+ * Scroll synchronization based on block IDs and source line numbers.
+ * Uses MarkdownDocument for line mapping, DOM only for pixel calculations.
  */
-
-const CODE_LINE_CLASS = 'code-line';
 
 /**
- * Element with source line information
+ * Interface for document line mapping (provided by MarkdownDocument)
  */
-export interface CodeLineElement {
-  element: HTMLElement;
-  line: number;
-  lineCount?: number;  // Number of source lines in this block
+export interface LineMapper {
+  /** Convert blockId + progress to source line number */
+  getLineFromBlockId(blockId: string, progress: number): number | null;
+  /** Convert source line to blockId + progress */
+  getBlockPositionFromLine(line: number): { blockId: string; progress: number } | null;
 }
 
 /**
- * Get all elements with source line information
+ * Options for scroll operations
  */
-export function getCodeLineElements(container?: HTMLElement): CodeLineElement[] {
-  const elements: CodeLineElement[] = [];
-  const root = container || document;
-  
-  for (const el of root.getElementsByClassName(CODE_LINE_CLASS)) {
-    if (!(el instanceof HTMLElement)) continue;
-    
-    const lineAttr = el.getAttribute('data-line');
-    if (!lineAttr) continue;
-    
-    const line = parseInt(lineAttr, 10);
-    if (isNaN(line)) continue;
-    
-    const lineCountAttr = el.getAttribute('data-line-count');
-    const lineCount = lineCountAttr ? parseInt(lineCountAttr, 10) : undefined;
-    
-    elements.push({ element: el, line, lineCount });
-  }
-  
-  // Sort by line number
-  elements.sort((a, b) => a.line - b.line);
-  return elements;
-}
-
-/**
- * Find elements for a specific source line
- */
-export function getElementsForSourceLine(
-  targetLine: number,
-  container?: HTMLElement
-): { previous?: CodeLineElement; next?: CodeLineElement } {
-  const elements = getCodeLineElements(container);
-  if (elements.length === 0) return {};
-  
-  let previous = elements[0];
-  
-  for (const entry of elements) {
-    if (entry.line === targetLine) {
-      return { previous: entry };
-    } else if (entry.line > targetLine) {
-      return { previous, next: entry };
-    }
-    previous = entry;
-  }
-  
-  return { previous };
-}
-
-/**
- * Options for getting line from scroll position
- */
-export interface GetLineOptions {
-  /** Content container element (for VSCode webview) */
-  container?: HTMLElement;
-  /** Whether using window scroll (true for Chrome) or container scroll (false for VSCode) */
-  useWindowScroll?: boolean;
-}
-
-/**
- * Get line number for current scroll position
- * Inverse of scrollToLine - calculates source line from pixel position
- */
-export function getLineForScrollPosition(options: GetLineOptions = {}): number | null {
-  const { container, useWindowScroll = true } = options;
-  
-  const elements = getCodeLineElements(container);
-  if (elements.length === 0) return null;
-  
-  let scrollTop: number;
-  let viewportTop: number;
-  
-  if (useWindowScroll) {
-    scrollTop = window.scrollY || window.pageYOffset || 0;
-    viewportTop = 0;
-  } else if (container) {
-    scrollTop = container.scrollTop;
-    viewportTop = container.getBoundingClientRect().top;
-  } else {
-    return null;
-  }
-  
-  // Find the block that contains the current scroll position
-  let previous = elements[0];
-  
-  for (let i = 0; i < elements.length; i++) {
-    const el = elements[i];
-    const rect = el.element.getBoundingClientRect();
-    const blockTop = useWindowScroll 
-      ? rect.top + scrollTop 
-      : rect.top - viewportTop + scrollTop;
-    
-    // If this block starts after current scroll position, previous is our target
-    if (blockTop > scrollTop) {
-      break;
-    }
-    
-    previous = el;
-  }
-  
-  // Get previous block position and height
-  const prevRect = previous.element.getBoundingClientRect();
-  const blockTop = useWindowScroll 
-    ? prevRect.top + scrollTop 
-    : prevRect.top - viewportTop + scrollTop;
-  const blockHeight = prevRect.height;
-  
-  // Calculate line range for this block
-  let blockLineCount: number;
-  if (previous.lineCount && previous.lineCount > 0) {
-    blockLineCount = previous.lineCount;
-  } else {
-    // Find next block to calculate line count
-    let nextBlockLine: number | undefined;
-    for (let i = 0; i < elements.length; i++) {
-      if (elements[i].line > previous.line) {
-        nextBlockLine = elements[i].line;
-        break;
-      }
-    }
-    blockLineCount = nextBlockLine ? nextBlockLine - previous.line : 1;
-  }
-  
-  // Calculate progress within block
-  const pixelOffset = scrollTop - blockTop;
-  const progress = blockHeight > 0 ? pixelOffset / blockHeight : 0;
-  
-  // Clamp progress to [0, 1]
-  const clampedProgress = Math.max(0, Math.min(1, progress));
-  
-  // Calculate line number
-  return previous.line + clampedProgress * blockLineCount;
-}
-
-/**
- * Options for scrolling to line
- */
-export interface ScrollToLineOptions {
-  /** Content container element (for VSCode webview) */
-  container?: HTMLElement;
+export interface ScrollOptions {
+  /** Content container element */
+  container: HTMLElement;
   /** Whether using window scroll (true for Chrome) or container scroll (false for VSCode) */
   useWindowScroll?: boolean;
   /** Scroll behavior */
@@ -168,82 +28,104 @@ export interface ScrollToLineOptions {
 }
 
 /**
- * Scroll to reveal a specific source line
- * @returns true if scroll was performed, false if no suitable element found or line out of range
+ * Find the block element at current scroll position
+ * @returns blockId and progress (0-1) within that block
  */
-export function scrollToLine(line: number, options: ScrollToLineOptions = {}): boolean {
+export function getBlockAtScrollPosition(options: ScrollOptions): { blockId: string; progress: number } | null {
+  const { container, useWindowScroll = true } = options;
+  
+  // Get all block elements
+  const blocks = container.querySelectorAll<HTMLElement>('[data-block-id]');
+  if (blocks.length === 0) return null;
+  
+  // Get current scroll position
+  let scrollTop: number;
+  let viewportTop: number;
+  
+  if (useWindowScroll) {
+    scrollTop = window.scrollY || window.pageYOffset || 0;
+    viewportTop = 0;
+  } else {
+    scrollTop = container.scrollTop;
+    viewportTop = container.getBoundingClientRect().top;
+  }
+  
+  // Find the block containing current scroll position
+  let targetBlock: HTMLElement | null = null;
+  
+  for (const block of blocks) {
+    const rect = block.getBoundingClientRect();
+    const blockTop = useWindowScroll 
+      ? rect.top + scrollTop 
+      : rect.top - viewportTop + scrollTop;
+    
+    if (blockTop > scrollTop) {
+      break;
+    }
+    targetBlock = block;
+  }
+  
+  if (!targetBlock) {
+    targetBlock = blocks[0] as HTMLElement;
+  }
+  
+  const blockId = targetBlock.getAttribute('data-block-id');
+  if (!blockId) return null;
+  
+  // Calculate progress within block
+  const rect = targetBlock.getBoundingClientRect();
+  const blockTop = useWindowScroll 
+    ? rect.top + scrollTop 
+    : rect.top - viewportTop + scrollTop;
+  const blockHeight = rect.height;
+  
+  const pixelOffset = scrollTop - blockTop;
+  const progress = blockHeight > 0 ? Math.max(0, Math.min(1, pixelOffset / blockHeight)) : 0;
+  
+  return { blockId, progress };
+}
+
+/**
+ * Scroll to a specific block with progress
+ * @returns true if scroll was performed
+ */
+export function scrollToBlock(
+  blockId: string, 
+  progress: number, 
+  options: ScrollOptions
+): boolean {
   const { container, useWindowScroll = true, behavior = 'auto' } = options;
   
-  // Special case: line <= 0 means scroll to top
-  if (line <= 0) {
-    if (useWindowScroll) {
-      window.scrollTo({ top: 0, behavior });
-    } else if (container) {
-      container.scrollTo({ top: 0, behavior });
-    }
-    return true;
-  }
+  // Find the block element
+  const block = container.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`);
+  if (!block) return false;
   
-  const { previous, next } = getElementsForSourceLine(line, container);
-  
-  if (!previous) {
-    return false;
-  }
-  
-  // Calculate line range for this block
-  let blockLineCount: number;
-  if (previous.lineCount && previous.lineCount > 0) {
-    blockLineCount = previous.lineCount;
-  } else if (next) {
-    blockLineCount = next.line - previous.line;
-  } else {
-    // Last block with no lineCount - assume 1 line
-    blockLineCount = 1;
-  }
-  
-  // If target line is beyond the last block's range, don't scroll yet
-  // (content may still be loading/rendering)
-  const lastLineInBlock = previous.line + blockLineCount;
-  if (!next && line > lastLineInBlock) {
-    // Target line is beyond rendered content, skip scrolling
-    return false;
-  }
-  
+  // Get current scroll context
   let currentScroll: number;
   let viewportTop: number;
   
   if (useWindowScroll) {
     currentScroll = window.scrollY || window.pageYOffset || 0;
     viewportTop = 0;
-  } else if (container) {
-    const containerRect = container.getBoundingClientRect();
-    currentScroll = container.scrollTop;
-    viewportTop = containerRect.top;
   } else {
-    return false;
+    currentScroll = container.scrollTop;
+    viewportTop = container.getBoundingClientRect().top;
   }
   
-  // Get previous block position and height
-  const rect = previous.element.getBoundingClientRect();
+  // Calculate target scroll position
+  const rect = block.getBoundingClientRect();
   const blockTop = useWindowScroll 
     ? rect.top + currentScroll 
     : rect.top - viewportTop + currentScroll;
   const blockHeight = rect.height;
   
-  // Calculate offset within block
-  const lineOffset = line - previous.line;
-  const progress = blockLineCount > 0 ? lineOffset / blockLineCount : 0;
-  
-  // Clamp progress to [0, 1] to stay within block bounds
   const clampedProgress = Math.max(0, Math.min(1, progress));
-  
-  // Calculate target pixel position
   const scrollTo = blockTop + clampedProgress * blockHeight;
   
   // Perform scroll
   if (useWindowScroll) {
     window.scrollTo({ top: Math.max(0, scrollTo), behavior });
-  } else if (container) {
+  } else {
     container.scrollTo({ top: Math.max(0, scrollTo), behavior });
   }
   
@@ -251,30 +133,61 @@ export function scrollToLine(line: number, options: ScrollToLineOptions = {}): b
 }
 
 /**
- * Line-based scroll state for persistence
+ * Get current scroll position as source line number
+ * Returns null if no blocks in DOM or lineMapper unavailable
  */
-export interface LineScrollState {
-  /** Source line number (with fractional part for position within block) */
-  line: number;
-  /** Timestamp when saved */
-  timestamp: number;
+export function getLineForScrollPosition(
+  lineMapper: LineMapper | null | undefined,
+  options: ScrollOptions
+): number | null {
+  if (!lineMapper) return null;
+  
+  const pos = getBlockAtScrollPosition(options);
+  if (!pos) return null;
+  
+  return lineMapper.getLineFromBlockId(pos.blockId, pos.progress);
+}
+
+/**
+ * Scroll to reveal a specific source line
+ * @returns true if scroll was performed
+ */
+export function scrollToLine(
+  line: number, 
+  lineMapper: LineMapper | null | undefined,
+  options: ScrollOptions
+): boolean {
+  const { container, useWindowScroll = true, behavior = 'auto' } = options;
+  
+  // Special case: line <= 0 means scroll to top
+  if (line <= 0) {
+    if (useWindowScroll) {
+      window.scrollTo({ top: 0, behavior });
+    } else {
+      container.scrollTo({ top: 0, behavior });
+    }
+    return true;
+  }
+  
+  // If no lineMapper, can't scroll to line
+  if (!lineMapper) return false;
+  
+  const pos = lineMapper.getBlockPositionFromLine(line);
+  if (!pos) return false;
+  
+  return scrollToBlock(pos.blockId, pos.progress, options);
 }
 
 /**
  * Scroll sync controller interface
- * Manages bi-directional scroll sync with user interaction detection
  */
 export interface ScrollSyncController {
   /** Set target line from source (e.g., editor) */
   setTargetLine(line: number): void;
   /** Get current scroll position as line number */
   getCurrentLine(): number | null;
-  /** Check if user has manually scrolled */
-  hasUserScrolled(): boolean;
-  /** Reset user scroll state (call on file switch) */
-  resetUserScroll(): void;
-  /** Reposition to target line if user hasn't scrolled (call after content changes) */
-  reposition(): void;
+  /** Reset target line to 0 (call when document changes) */
+  resetTargetLine(): void;
   /** Start the controller */
   start(): void;
   /** Stop and cleanup */
@@ -287,6 +200,8 @@ export interface ScrollSyncController {
 export interface ScrollSyncControllerOptions {
   /** Content container element */
   container: HTMLElement;
+  /** Line mapper getter (called each time to get latest document state) */
+  getLineMapper: () => LineMapper;
   /** Whether using window scroll (true for Chrome) or container scroll (false for VSCode) */
   useWindowScroll?: boolean;
   /** Callback when user scrolls (for reverse sync) */
@@ -296,126 +211,93 @@ export interface ScrollSyncControllerOptions {
 }
 
 /**
- * Create a scroll sync controller that:
- * 1. Tracks target line from source (editor)
- * 2. Auto-repositions on content changes if user hasn't scrolled
- * 3. Detects user-initiated scroll vs programmatic scroll
- * 4. Reports user scroll for reverse sync
+ * Create a scroll sync controller
  */
 export function createScrollSyncController(options: ScrollSyncControllerOptions): ScrollSyncController {
   const {
     container,
+    getLineMapper,
     useWindowScroll = false,
     onUserScroll,
     userScrollDebounceMs = 50,
   } = options;
 
-  // Current target line (always kept up-to-date from any source)
   let targetLine: number = 0;
-  // Is current scroll gesture from user interaction?
-  let isUserScrolling = false;
-  let userScrollResetTimer: ReturnType<typeof setTimeout> | null = null;
+  let lastProgrammaticScrollTime = 0;  // Timestamp of last programmatic scroll
+  const SCROLL_LOCK_DURATION = 50;     // Ignore scroll events for 50ms after programmatic scroll
   let userScrollDebounceTimer: ReturnType<typeof setTimeout> | null = null;
   let lastContentHeight = 0;
   let resizeObserver: ResizeObserver | null = null;
   let mutationObserver: MutationObserver | null = null;
   let disposed = false;
 
-  const scrollOptions: ScrollToLineOptions = {
+  const scrollOptions: ScrollOptions = {
     container,
     useWindowScroll,
   };
 
-  const getLineOptions: GetLineOptions = {
-    container,
-    useWindowScroll,
-  };
-
-  // Get scroll target (window or container)
   const getScrollTarget = (): HTMLElement | Window => {
     return useWindowScroll ? window : container;
   };
 
   /**
-   * Mark scroll as user-initiated
+   * Perform programmatic scroll and mark timestamp
    */
-  const markUserScroll = (): void => {
-    isUserScrolling = true;
-    
-    if (userScrollResetTimer) clearTimeout(userScrollResetTimer);
-    userScrollResetTimer = setTimeout(() => {
-      isUserScrolling = false;
-    }, 200);
+  const doScroll = (line: number): void => {
+    lastProgrammaticScrollTime = Date.now();
+    scrollToLine(line, getLineMapper(), scrollOptions);
   };
 
   /**
-   * Handle scroll event - only update targetLine on user scroll
+   * Handle scroll event - skip if within lock duration after programmatic scroll
    */
   const handleScroll = (): void => {
     if (disposed) return;
 
-    // Only update targetLine and notify when user initiates scroll
-    // Program scroll (from setTargetLine) should NOT update targetLine
-    if (isUserScrolling) {
-      const currentLine = getLineForScrollPosition(getLineOptions);
-      if (currentLine !== null && !isNaN(currentLine)) {
-        targetLine = currentLine;
-        
-        // Report to source (editor) for reverse sync
-        if (onUserScroll) {
-          if (userScrollDebounceTimer) clearTimeout(userScrollDebounceTimer);
-          userScrollDebounceTimer = setTimeout(() => {
-            if (!disposed) {
-              onUserScroll(currentLine);
-            }
-          }, userScrollDebounceMs);
+    // Skip scroll events within lock duration after programmatic scroll
+    if (Date.now() - lastProgrammaticScrollTime < SCROLL_LOCK_DURATION) {
+      return;
+    }
+
+    // User-initiated scroll - report position for reverse sync
+    if (!onUserScroll) return;
+
+    const currentLine = getLineForScrollPosition(getLineMapper(), scrollOptions);
+    if (currentLine !== null && !isNaN(currentLine)) {
+      targetLine = currentLine;
+      
+      if (userScrollDebounceTimer) clearTimeout(userScrollDebounceTimer);
+      userScrollDebounceTimer = setTimeout(() => {
+        if (!disposed) {
+          onUserScroll(currentLine);
         }
-      }
+      }, userScrollDebounceMs);
     }
   };
 
-  /**
-   * Check content height and reposition if needed
-   */
   const checkAndReposition = (): void => {
     if (disposed) return;
 
     const currentHeight = container.scrollHeight;
     if (currentHeight !== lastContentHeight) {
       lastContentHeight = currentHeight;
-      // Content changed, reposition to targetLine
-      scrollToLine(targetLine, scrollOptions);
+      doScroll(targetLine);
     }
   };
 
-  /**
-   * Setup event listeners
-   */
   const setupListeners = (): void => {
     const target = getScrollTarget();
 
-    // User interaction events (detect user-initiated scroll)
-    target.addEventListener('wheel', markUserScroll, { passive: true });
-    target.addEventListener('touchmove', markUserScroll, { passive: true });
-    target.addEventListener('keydown', (e: Event) => {
-      const key = (e as KeyboardEvent).key;
-      if (['ArrowUp', 'ArrowDown', 'PageUp', 'PageDown', 'Home', 'End', ' '].includes(key)) {
-        markUserScroll();
-      }
-    });
-
-    // Scroll event (update targetLine and optionally sync to editor)
+    // Listen to all scroll events
     target.addEventListener('scroll', handleScroll, { passive: true });
 
-    // Monitor content changes for auto-reposition (immediate)
     if (typeof ResizeObserver !== 'undefined') {
       resizeObserver = new ResizeObserver(() => {
-        // Use requestAnimationFrame for immediate visual update
+        lastProgrammaticScrollTime = Date.now();  // Lock immediately, before rAF
         requestAnimationFrame(checkAndReposition);
       });
       resizeObserver.observe(container);
       
-      // Also observe the content element inside container for better detection
       const contentEl = container.querySelector('#markdown-content');
       if (contentEl) {
         resizeObserver.observe(contentEl);
@@ -423,7 +305,7 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
     }
 
     mutationObserver = new MutationObserver(() => {
-      // Immediate reposition on DOM change
+      lastProgrammaticScrollTime = Date.now();  // Lock immediately, before rAF
       requestAnimationFrame(checkAndReposition);
     });
     mutationObserver.observe(container, {
@@ -434,53 +316,32 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
     });
   };
 
-  /**
-   * Remove event listeners
-   */
   const removeListeners = (): void => {
     const target = getScrollTarget();
 
-    target.removeEventListener('wheel', markUserScroll);
-    target.removeEventListener('touchmove', markUserScroll);
     target.removeEventListener('scroll', handleScroll);
 
     resizeObserver?.disconnect();
     mutationObserver?.disconnect();
 
-    if (userScrollResetTimer) clearTimeout(userScrollResetTimer);
     if (userScrollDebounceTimer) clearTimeout(userScrollDebounceTimer);
   };
 
   return {
     setTargetLine(line: number): void {
       targetLine = line;
-      // Scroll to target
-      scrollToLine(line, scrollOptions);
+      doScroll(line);
       lastContentHeight = container.scrollHeight;
     },
 
     getCurrentLine(): number | null {
-      return getLineForScrollPosition(getLineOptions);
+      return getLineForScrollPosition(getLineMapper(), scrollOptions);
     },
 
-    hasUserScrolled(): boolean {
-      return isUserScrolling;
-    },
-
-    resetUserScroll(): void {
-      isUserScrolling = false;
+    resetTargetLine(): void {
       targetLine = 0;
-      // Scroll to top
-      scrollToLine(0, scrollOptions);
-      lastContentHeight = container.scrollHeight;
-    },
-
-    reposition(): void {
-      // Always reposition to targetLine
-      if (!disposed) {
-        scrollToLine(targetLine, scrollOptions);
-        lastContentHeight = container.scrollHeight;
-      }
+      lastContentHeight = 0;
+      lastProgrammaticScrollTime = Date.now();  // Lock scroll events during file switch
     },
 
     start(): void {

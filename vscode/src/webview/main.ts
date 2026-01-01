@@ -8,7 +8,7 @@
  */
 
 import { platform, vscodeBridge } from './api-impl';
-import { renderMarkdownDocument } from '../../../src/core/viewer/viewer-controller';
+import { renderMarkdownDocument, getDocument } from '../../../src/core/viewer/viewer-controller';
 import { AsyncTaskManager } from '../../../src/core/markdown-processor';
 import { wrapFileContent } from '../../../src/utils/file-wrapper';
 import { createScrollSyncController, type ScrollSyncController } from '../../../src/core/line-based-scroll';
@@ -265,10 +265,17 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
 
     // Only clear container when file changes (for incremental update support)
     if (fileChanged) {
+      // Check if this is a real file switch (has existing content) vs initial load
+      const isRealFileSwitch = container.childNodes.length > 0;
+      
       container.innerHTML = '';
-      // Note: Don't reset scroll position here - the host will send SCROLL_TO_LINE
-      // with the correct position for the new file. The scrollSyncController will
-      // reposition after rendering is complete.
+      
+      // Only reset scroll state on real file switch, not initial load
+      // Initial load: SCROLL_TO_LINE arrives before UPDATE_CONTENT, targetLine already set
+      // File switch: need to reset to avoid old targetLine interfering with new document
+      if (isRealFileSwitch) {
+        scrollSyncController?.resetTargetLine();
+      }
     }
 
     // Apply theme CSS if we have theme data
@@ -304,20 +311,8 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
       translate: (key: string, subs?: string | string[]) => Localization.translate(key, subs),
       taskManager,
       clearContainer: fileChanged,  // Clear only when file changes
-      incrementalUpdate: shouldIncremental,  // Only incremental for same file
-      processTasks: true,
       onHeadings: (headings) => {
         vscodeBridge.postMessage('HEADINGS_UPDATED', headings);
-      },
-      onProgress: (completed, total) => {
-        if (!taskManager.isAborted()) {
-          vscodeBridge.postMessage('RENDER_PROGRESS', { completed, total });
-          // Reposition scroll after each async task completes (e.g., diagram rendered)
-          scrollSyncController?.reposition();
-        }
-      },
-      postProcess: async (el) => {
-        await postProcessContent(el);
       },
     });
 
@@ -330,15 +325,17 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
       return;
     }
 
+    // Process async tasks after initial render (same pattern as Chrome/Mobile)
+    // This renders diagrams, charts, etc.
+    await renderResult.taskManager.processAll((completed, total) => {
+      if (!taskManager.isAborted()) {
+        vscodeBridge.postMessage('RENDER_PROGRESS', { completed, total });
+      }
+    });
+
     // Clear task manager reference
     if (currentTaskManager === taskManager) {
       currentTaskManager = null;
-    }
-
-    // Reposition scroll after content is rendered
-    // This handles the case where SCROLL_TO_LINE arrived before content was ready
-    if (scrollSyncController) {
-      scrollSyncController.reposition();
     }
 
     // Notify extension host
@@ -347,28 +344,12 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
       title: renderResult.title || currentFilename
     });
 
-    // Note: Scrolling is handled by SCROLL_TO_LINE messages from the extension
-    // which are triggered by onDidChangeTextEditorVisibleRanges.
-    // We don't scroll here because:
-    // 1. The extension's TopmostLineMonitor tracks the scroll position per document
-    // 2. When switching files, scrollToLine() is called after setDocument()
-    // 3. Scrolling here with initialLine could conflict with the scroll sync
-
   } catch (error) {
     console.error('[VSCode Webview] Render failed:', error);
     vscodeBridge.postMessage('RENDER_ERROR', {
       error: (error as Error).message
     });
   }
-}
-
-// ============================================================================
-// Post-process Content (same as Mobile)
-// ============================================================================
-
-async function postProcessContent(_container: Element): Promise<void> {
-  // Link click handling is done via event delegation in initializeUI
-  // No per-element processing needed here
 }
 
 // ============================================================================
@@ -461,14 +442,15 @@ function handleSetZoom(payload: SetZoomPayload): void {
 
 declare global {
   interface Window {
-    loadMarkdown: (content: string, filename?: string, themeDataJson?: string) => void;
+    loadMarkdown: (content: string, filename?: string, themeDataJson?: string, scrollLine?: number) => void;
     setTheme: (themeId: string) => void;
     setZoom: (zoom: number) => void;
     exportDocx: () => void;
   }
 }
 
-window.loadMarkdown = (content: string, filename?: string, themeDataJson?: string) => {
+window.loadMarkdown = (content: string, filename?: string, themeDataJson?: string, _scrollLine?: number) => {
+  // scrollLine is ignored in VSCode - scroll sync is handled via SCROLL_TO_LINE messages
   handleUpdateContent({ content, filename, themeDataJson });
 };
 
@@ -690,8 +672,9 @@ function initScrollSyncController(): void {
   
   scrollSyncController = createScrollSyncController({
     container,
+    getLineMapper: getDocument,
     useWindowScroll: false,
-    userScrollDebounceMs: 50,
+    userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
     onUserScroll: (line) => {
       // Report user scroll to extension for reverse sync (Preview → Editor)
       vscodeBridge.postMessage('REVEAL_LINE', { line });

@@ -126,7 +126,8 @@ export function createHistoryTabManager({ showMessage, showConfirm }: HistoryTab
       // Add click handler to open the document
       historyItemEl.addEventListener('click', async () => {
         try {
-          const isFirefox = typeof browser !== 'undefined' || navigator.userAgent.includes('Firefox');
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const isFirefox = typeof (globalThis as any).browser !== 'undefined' || navigator.userAgent.includes('Firefox');
           const isFileUrl = item.url.startsWith('file://');
           
           // Firefox cannot open file:// URLs from extension context due to security restrictions
