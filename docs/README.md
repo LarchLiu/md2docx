@@ -4,6 +4,12 @@
 
 *Completely Free · 18+ Professional Themes · 28 Languages Support*
 
+### 🚀 Install Now
+
+- **Chrome / Chromium:** https://chromewebstore.google.com/detail/markdown-viewer/jekhhoflgcfoikceikgeenibinpojaoi
+- **Firefox:** https://addons.mozilla.org/firefox/addon/markdown-viewer-extension/
+- **VS Code:** https://marketplace.visualstudio.com/items?itemName=xicilion.markdown-viewer-extension
+
 ---
 
 ## What is Markdown Viewer?

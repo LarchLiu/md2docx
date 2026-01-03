@@ -14,7 +14,7 @@ The Chrome extension is the primary platform for Markdown Viewer, offering the m
 | Smart caching | ✅ |
 | Offline mode | ✅ |
 
-**Version:** 1.3.0  
+**Version:** 1.4.0  
 **Manifest:** V3 (latest Chrome standard)
 
 ---

@@ -19,15 +19,16 @@ Markdown Viewer is available as a VS Code extension, allowing you to preview and
 
 ### From VS Code Marketplace
 
-1. Open VS Code
-2. Go to Extensions (`Ctrl+Shift+X` / `Cmd+Shift+X`)
-3. Search for **"Markdown Viewer"**
-4. Click **Install**
+1. Visit [VS Code Marketplace - Markdown Viewer Extension](https://marketplace.visualstudio.com/items?itemName=xicilion.markdown-viewer-extension)
+2. Click **Install**
+3. Or open VS Code, go to Extensions (`Ctrl+Shift+X` / `Cmd+Shift+X`)
+4. Search for **"Markdown Viewer Extension"**
+5. Click **Install**
 
 ### From Command Line
 
 ```bash
-code --install-extension markdown-viewer
+code --install-extension xicilion.markdown-viewer-extension
 ```
 
 ---

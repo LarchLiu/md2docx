@@ -139,16 +139,16 @@ All 28 languages are supported on all platforms:
 
 - **Permissions**: storage, unlimitedStorage, downloads, tabs, activeTab, scripting, webRequest, webRequestBlocking
 - **Manifest**: V3
-- **Minimum Version**: Firefox 109.0
+- **Minimum Version**: Firefox 140.0
 - **Special**: Extended permissions for web request handling
-- **Install**: [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/markdown-viewer-advanced/)
+- **Install**: [Firefox Add-ons](https://addons.mozilla.org/firefox/addon/markdown-viewer-extension/)
 
 ### VS Code Extension
 
 - **Commands**: Preview, Preview to Side, Export DOCX, Open Settings, Refresh
 - **Settings**: Theme, Font Size, Font Family, Line Numbers, Scroll Sync
 - **Special**: Bidirectional scroll sync with editor, keyboard shortcuts
-- **Install**: VS Code Marketplace
+- **Install**: [VS Code Marketplace](https://marketplace.visualstudio.com/items?itemName=xicilion.markdown-viewer-extension)
 
 ### Mobile App
 
@@ -160,7 +160,7 @@ All 28 languages are supported on all platforms:
 
 ## Version Information
 
-All platforms are currently at version **1.3.0**.
+All platforms are currently at version **1.4.0**.
 
 ## Related Pages
 

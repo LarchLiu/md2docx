@@ -14,9 +14,9 @@ Markdown Viewer is available for Firefox with full feature support.
 | Smart caching | ✅ |
 | Offline mode | ✅ |
 
-**Version:** 1.3.0  
+**Version:** 1.4.0  
 **Manifest:** V3  
-**Minimum Firefox:** 109.0
+**Minimum Firefox:** 140.0
 
 ---
 
@@ -24,7 +24,7 @@ Markdown Viewer is available for Firefox with full feature support.
 
 ### From Firefox Add-ons
 
-1. Visit [Firefox Add-ons - Markdown Viewer](https://addons.mozilla.org/firefox/addon/markdown-viewer/)
+1. Visit [Firefox Add-ons - Markdown Viewer](https://addons.mozilla.org/firefox/addon/markdown-viewer-extension/)
 2. Click **"Add to Firefox"**
 3. Confirm the installation
 
@@ -118,7 +118,7 @@ Both versions provide the same user-facing features.
 
 ### Extension Not Loading?
 
-1. Check Firefox version (requires 109.0+)
+1. Check Firefox version (requires 140.0+)
 2. Verify extension is enabled in `about:addons`
 3. Try disabling and re-enabling
 4. Restart Firefox

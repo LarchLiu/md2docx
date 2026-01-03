@@ -9,8 +9,8 @@
 ![Install](icons/icon16.png) 🚀 **Install Now (Choose Your Platform):**
 
 - **Chrome / Chromium:** https://chromewebstore.google.com/detail/markdown-viewer/jekhhoflgcfoikceikgeenibinpojaoi
-- **Firefox:** https://addons.mozilla.org/firefox/addon/markdown-viewer/
-- **VS Code:** Search "Markdown Viewer" in Extensions, or run `code --install-extension markdown-viewer`
+- **Firefox:** https://addons.mozilla.org/firefox/addon/markdown-viewer-extension/
+- **VS Code:** https://marketplace.visualstudio.com/items?itemName=xicilion.markdown-viewer-extension
 - **Mobile (iOS/Android):** See [Mobile App](docs/platforms/mobile.md)
 
 ---
