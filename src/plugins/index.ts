@@ -19,6 +19,7 @@ import { InfographicPlugin } from './infographic-plugin';
 import { replacePlaceholderWithImage } from './plugin-html-utils';
 import { createErrorHTML } from './plugin-content-utils';
 import { convertPluginResultToDOCX } from '../exporters/docx-exporter';
+import { syncBlockHtmlFromDOM } from '../core/viewer/viewer-controller';
 import type { BasePlugin } from './base-plugin';
 import type { Processor } from 'unified';
 import type { Node, Parent } from 'unist';
@@ -136,6 +137,9 @@ export function registerRemarkPlugins(
                   
                   if (renderResult) {
                     replacePlaceholderWithImage(id, renderResult, plugin.type, plugin.isInline());
+                    // Sync rendered content back to in-memory cache
+                    // This ensures block moves don't lose rendered diagrams
+                    syncBlockHtmlFromDOM(id);
                   } else {
                     const placeholder = document.getElementById(id);
                     if (placeholder) {
@@ -155,6 +159,8 @@ export function registerRemarkPlugins(
                     const localizedError = translate('async_processing_error', [plugin.type, errorDetail]) 
                       || `${plugin.type} error: ${errorDetail}`;
                     placeholder.outerHTML = createErrorHTML(localizedError);
+                    // Also sync error state to memory
+                    syncBlockHtmlFromDOM(id);
                   }
                 }
               },

@@ -737,5 +737,76 @@ Para 4`);
         }
       }
     });
+
+    it('should preserve rendered HTML (not placeholder) when block moves', () => {
+      // Scenario: Async rendering completes, then user edits cause block reorder
+      // The moved block should use rendered HTML, not stale placeholder
+      const initialContent = `# Title
+
+Block A
+
+\`\`\`mermaid
+graph TD
+A --> B
+\`\`\`
+
+Block B`;
+
+      const doc = new MarkdownDocument(initialContent);
+      
+      // Simulate initial render with placeholder
+      doc.setBlockHtml(0, '<h1>Title</h1>');
+      doc.setBlockHtml(1, '<p>Block A</p>');
+      doc.setBlockHtml(2, '<div class="async-placeholder" id="p1">Loading...</div>');
+      doc.setBlockHtml(3, '<p>Block B</p>');
+      
+      // Verify placeholder state
+      assert.strictEqual(doc.getBlock(2)?.hasPlaceholder, true);
+      
+      // Simulate async render completion - sync rendered HTML back to memory
+      const mermaidBlock = doc.getBlocks().find(b => b.content.includes('mermaid'));
+      const renderedHtml = '<div class="diagram-block" data-plugin-rendered="true"><img src="data:image/png;base64,xxx"/></div>';
+      doc.setBlockHtmlById(mermaidBlock.id, renderedHtml);
+      
+      // Verify placeholder state cleared
+      assert.strictEqual(doc.getBlockById(mermaidBlock.id)?.hasPlaceholder, false);
+      
+      // User edit: swap Block A and Block B
+      const newContent = `# Title
+
+Block B
+
+\`\`\`mermaid
+graph TD
+A --> B
+\`\`\`
+
+Block A`;
+
+      const diff = doc.update(newContent);
+      
+      // Find the command for mermaid block
+      const mermaidMoveCmd = diff.commands.find(cmd => 
+        cmd.blockId === mermaidBlock.id && 
+        (cmd.type === 'insertBefore' || cmd.type === 'append')
+      );
+      
+      // Key assertion: moved block should use rendered HTML, not placeholder
+      if (mermaidMoveCmd) {
+        assert.ok(
+          mermaidMoveCmd.html.includes('data-plugin-rendered'),
+          'Moved block should use rendered HTML, not placeholder'
+        );
+        assert.ok(
+          !mermaidMoveCmd.html.includes('async-placeholder'),
+          'Moved block should not contain placeholder'
+        );
+      }
+      
+      // Also verify the block still has correct HTML in memory
+      const updatedMermaidBlock = doc.getBlocks().find(b => b.content.includes('mermaid'));
+      assert.strictEqual(updatedMermaidBlock?.html, renderedHtml);
+      assert.strictEqual(updatedMermaidBlock?.hasPlaceholder, false);
+    });
   });
 });

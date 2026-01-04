@@ -456,9 +456,10 @@ export class MarkdownDocument {
     for (const op of keepOps) {
       const oldBlock = oldBlocks[op.oldIndex];
       newBlocks[op.newIndex].id = oldBlock.id;
-      // Preserve cached HTML
+      // Preserve cached HTML and placeholder state
       if (oldBlock.html) {
         newBlocks[op.newIndex].html = oldBlock.html;
+        newBlocks[op.newIndex].hasPlaceholder = oldBlock.hasPlaceholder;
       }
       stats.kept++;
     }

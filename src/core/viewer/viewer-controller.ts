@@ -95,6 +95,36 @@ export function clearHtmlCache(): void {
 }
 
 /**
+ * Sync block HTML from DOM after async rendering completes.
+ * Called when a placeholder is replaced with rendered content.
+ * This ensures the in-memory cache matches the actual DOM state.
+ * 
+ * @param placeholderId - The ID of the placeholder element that was replaced
+ */
+export function syncBlockHtmlFromDOM(placeholderId: string): void {
+  if (!documentInstance) return;
+  
+  // Find the rendered element (placeholder has been replaced, so we search by traversing)
+  // The element might be inside a block container with data-block-id
+  const allBlocks = document.querySelectorAll<HTMLElement>('[data-block-id]');
+  
+  for (const blockEl of allBlocks) {
+    const blockId = blockEl.getAttribute('data-block-id');
+    if (!blockId) continue;
+    
+    // Check if this block contains any element that was the placeholder
+    // After replacement, we can check for data-plugin-rendered="true" 
+    // or simply update based on the block having async content
+    const hasRenderedContent = blockEl.querySelector('[data-plugin-rendered="true"]');
+    
+    if (hasRenderedContent) {
+      // Update the in-memory HTML cache with current DOM state
+      documentInstance.setBlockHtmlById(blockId, blockEl.innerHTML);
+    }
+  }
+}
+
+/**
  * Main render function using MarkdownDocument architecture
  */
 export async function renderMarkdownDocument(options: RenderMarkdownOptions): Promise<ViewerRenderResult> {
