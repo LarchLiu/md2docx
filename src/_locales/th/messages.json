@@ -167,6 +167,10 @@
     "message": "ปิด",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "แสดงตัวอย่างเป็น Markdown",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Delete",
     "description": "Delete button text"

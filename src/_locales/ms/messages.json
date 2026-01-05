@@ -167,6 +167,10 @@
     "message": "Tutup",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Pratonton sebagai Markdown",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Padam",
     "description": "Delete button text"

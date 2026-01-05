@@ -167,6 +167,10 @@
     "message": "Schließen",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Als Markdown anzeigen",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Löschen",
     "description": "Delete button text"

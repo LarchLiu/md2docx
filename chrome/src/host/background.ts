@@ -886,7 +886,7 @@ function abortUploadSession(token: string | undefined): void {
 // Listen for settings changes to update cache manager
 chrome.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes.markdownViewerSettings) {
-    const newSettings = changes.markdownViewerSettings.newValue as { maxCacheItems?: number } | undefined;
+    const newSettings = changes.markdownViewerSettings.newValue as { maxCacheItems?: number; preferredLocale?: string } | undefined;
     if (newSettings && newSettings.maxCacheItems) {
       const newMaxItems = newSettings.maxCacheItems;
       
@@ -897,5 +897,99 @@ chrome.storage.onChanged.addListener((changes, areaName) => {
         }
       }
     }
+    
+    // Update context menu when locale changes
+    if (newSettings && 'preferredLocale' in newSettings) {
+      updateContextMenu();
+    }
   }
 });
+
+// Get localized menu title based on user settings
+async function getMenuTitle(): Promise<string> {
+  try {
+    const result = await chrome.storage.local.get(['markdownViewerSettings']);
+    const settings = result?.markdownViewerSettings as { preferredLocale?: string } | undefined;
+    const preferredLocale = settings?.preferredLocale;
+    
+    // If user has set a preferred locale (not 'auto'), load from that locale
+    if (preferredLocale && preferredLocale !== 'auto') {
+      try {
+        const localeUrl = chrome.runtime.getURL(`_locales/${preferredLocale}/messages.json`);
+        const response = await fetch(localeUrl);
+        const messages = await response.json();
+        const message = messages['contextMenu_previewAsMarkdown']?.message;
+        if (message) {
+          return message;
+        }
+      } catch (error) {
+        // Fallback to browser locale if custom locale fails
+        console.warn(`Failed to load locale ${preferredLocale}, using browser default`);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to get settings:', error);
+  }
+  
+  // Default to browser locale
+  return chrome.i18n.getMessage('contextMenu_previewAsMarkdown') || 'Preview as Markdown';
+}
+
+// Initialize context menu for previewing any file as markdown
+async function initializeContextMenu(): Promise<void> {
+  try {
+    const title = await getMenuTitle();
+    chrome.contextMenus.create({
+      id: 'preview-as-markdown',
+      title,
+      contexts: ['link', 'page'],
+      documentUrlPatterns: ['file://*/*', 'http://*/*', 'https://*/*']
+    });
+  } catch (error) {
+    console.error('Failed to create context menu:', error);
+  }
+}
+
+// Update context menu when settings change
+async function updateContextMenu(): Promise<void> {
+  try {
+    const title = await getMenuTitle();
+    await chrome.contextMenus.update('preview-as-markdown', { title });
+  } catch (error) {
+    // Menu might not exist yet, ignore
+    if (!error?.toString().includes('Cannot find menu item')) {
+      console.error('Failed to update context menu:', error);
+    }
+  }
+}
+
+// Handle context menu clicks
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'preview-as-markdown' && tab?.id) {
+    let targetUrl = '';
+    
+    // Get the URL to preview
+    if (info.linkUrl) {
+      targetUrl = info.linkUrl;
+    } else if (tab.url) {
+      targetUrl = tab.url;
+    }
+    
+    if (targetUrl) {
+      const isCurrentPage = targetUrl === tab.url;
+      
+      if (isCurrentPage) {
+        // Current page - inject directly
+        handleContentScriptInjection(tab.id).catch((error) => {
+          console.error('Failed to inject content script:', error);
+        });
+      } else {
+        // Navigate current tab to the target URL
+        chrome.tabs.update(tab.id, { url: targetUrl });
+      }
+    }
+  }
+});
+
+// Initialize context menu when extension loads
+initializeContextMenu();

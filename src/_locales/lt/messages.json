@@ -167,6 +167,10 @@
     "message": "Uždaryti",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Peržiūrėti kaip Markdown",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Ištrinti",
     "description": "Delete button text"

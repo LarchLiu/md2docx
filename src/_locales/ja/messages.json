@@ -167,6 +167,10 @@
     "message": "閉じる",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Markdownでプレビュー",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "削除",
     "description": "Delete button text"

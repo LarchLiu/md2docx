@@ -975,11 +975,113 @@ async function handleDocxDownloadFinalizeAsync(
 // Listen for settings changes to update cache manager
 browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName === 'local' && changes.markdownViewerSettings) {
-    const newSettings = changes.markdownViewerSettings.newValue as { maxCacheItems?: number } | undefined;
+    const newSettings = changes.markdownViewerSettings.newValue as { maxCacheItems?: number; preferredLocale?: string } | undefined;
     if (newSettings && newSettings.maxCacheItems && globalCacheManager) {
       if ('maxItems' in globalCacheManager) {
         (globalCacheManager as { maxItems: number }).maxItems = newSettings.maxCacheItems;
       }
     }
+    
+    // Update context menu when locale changes
+    if (newSettings && 'preferredLocale' in newSettings) {
+      updateContextMenu();
+    }
   }
 });
+
+// ============================================================================
+// Context Menu for Preview as Markdown
+// ============================================================================
+
+// Get localized menu title based on user settings
+async function getMenuTitle(): Promise<string> {
+  try {
+    const result = await browser.storage.local.get(['markdownViewerSettings']);
+    const settings = result?.markdownViewerSettings as { preferredLocale?: string } | undefined;
+    const preferredLocale = settings?.preferredLocale;
+    
+    // If user has set a preferred locale (not 'auto'), load from that locale
+    if (preferredLocale && preferredLocale !== 'auto') {
+      try {
+        const localeUrl = browser.runtime.getURL(`_locales/${preferredLocale}/messages.json`);
+        const response = await fetch(localeUrl);
+        const messages = await response.json();
+        const message = messages['contextMenu_previewAsMarkdown']?.message;
+        if (message) {
+          return message;
+        }
+      } catch (error) {
+        // Fallback to browser locale if custom locale fails
+        console.warn(`Failed to load locale ${preferredLocale}, using browser default`);
+      }
+    }
+  } catch (error) {
+    console.warn('Failed to get settings:', error);
+  }
+  
+  // Default to browser locale
+  return browser.i18n.getMessage('contextMenu_previewAsMarkdown') || 'Preview as Markdown';
+}
+
+// Initialize context menu for previewing any file as markdown
+async function initializeContextMenu(): Promise<void> {
+  try {
+    const title = await getMenuTitle();
+    browser.menus.create({
+      id: 'preview-as-markdown',
+      title,
+      contexts: ['link', 'page'],
+      documentUrlPatterns: ['file:///*', 'http://*/*', 'https://*/*']
+    });
+  } catch (error) {
+    console.error('Failed to create context menu:', error);
+  }
+}
+
+// Update context menu when settings change
+async function updateContextMenu(): Promise<void> {
+  try {
+    const title = await getMenuTitle();
+    await browser.menus.update('preview-as-markdown', { title });
+  } catch (error) {
+    // Menu might not exist yet, ignore
+    if (!error?.toString().includes('Could not find any menu items')) {
+      console.error('Failed to update context menu:', error);
+    }
+  }
+}
+
+// Handle context menu clicks
+browser.menus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId === 'preview-as-markdown' && tab?.id) {
+    let targetUrl = '';
+    
+    // Get the URL to preview
+    if (info.linkUrl) {
+      targetUrl = info.linkUrl;
+    } else if (info.pageUrl) {
+      targetUrl = info.pageUrl;
+    } else if (tab.url) {
+      targetUrl = tab.url;
+    }
+    
+    if (targetUrl) {
+      const isCurrentPage = targetUrl === tab.url || targetUrl === info.pageUrl;
+      
+      if (isCurrentPage) {
+        // Current page - inject directly
+        handleContentScriptInjection(tab.id).catch((error) => {
+          console.error('[Firefox Background] Failed to inject content script:', error);
+        });
+      } else {
+        // Navigate current tab to the target URL
+        browser.tabs.update(tab.id, { url: targetUrl }).catch((error) => {
+          console.error('[Firefox Background] Failed to navigate to URL:', error);
+        });
+      }
+    }
+  }
+});
+
+// Initialize context menu when background page loads
+initializeContextMenu();

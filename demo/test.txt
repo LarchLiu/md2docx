@@ -1,0 +1,50 @@
+# Markdown Viewer Extension Demo
+
+This is a **markdown file** with `.txt` extension to demonstrate the context menu preview feature.
+
+## Features
+
+- Right-click context menu support
+- Preview any file as Markdown
+- Multi-language support (28 languages)
+- No file extension restriction
+
+## Code Example
+
+```javascript
+// Test code highlighting
+function greet(name) {
+  console.log(`Hello, ${name}!`);
+}
+```
+
+## List Example
+
+1. First item
+2. Second item
+3. Third item
+
+- Bullet point 1
+- Bullet point 2
+- Bullet point 3
+
+## Links
+
+[Visit GitHub](https://github.com)
+
+## Blockquote
+
+> This file has `.txt` extension but contains Markdown content.
+> Right-click to preview it as Markdown!
+
+## Table
+
+| Feature | Status |
+|---------|--------|
+| Context Menu | ✅ |
+| Multi-language | ✅ |
+| Auto-inject | ✅ |
+
+---
+
+**Right-click this file and select "Preview as Markdown" to test the feature!**

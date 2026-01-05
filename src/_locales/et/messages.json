@@ -167,6 +167,10 @@
     "message": "Sulge",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Eelvaade Markdownina",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Kustuta",
     "description": "Delete button text"

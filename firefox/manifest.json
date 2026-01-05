@@ -23,7 +23,8 @@
     "activeTab",
     "scripting",
     "webRequest",
-    "webRequestBlocking"
+    "webRequestBlocking",
+    "menus"
   ],
   "host_permissions": [
     "file:///*",

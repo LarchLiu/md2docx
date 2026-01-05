@@ -167,6 +167,10 @@
     "message": "Закрыць",
     "description": "Close button text/tooltip"
   },
+  "contextMenu_previewAsMarkdown": {
+    "message": "Прагляд як Markdown",
+    "description": "Context menu item to preview any file as markdown"
+  },
   "delete": {
     "message": "Выдаліць",
     "description": "Delete button text"
