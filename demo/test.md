@@ -1,3 +1,11 @@
+---
+title: Markdown Viewer 渲染效果测试
+author: Markdown Viewer Team
+date: 2026-01-10
+version: 1.4.2
+tags: [markdown, test, demo]
+---
+
 # Markdown Viewer Extension 渲染效果测试
 
 [toc]
