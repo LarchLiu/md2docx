@@ -968,23 +968,19 @@ export class MarkdownPreviewPanel {
       display: none !important;
     }
     
-    /* VS Code webview layout */
+    /* VS Code webview layout - use body scroll */
     html, body {
       height: 100%;
       margin: 0;
       padding: 0;
-      overflow: hidden;
     }
     
     #vscode-root {
-      display: flex;
-      flex-direction: column;
-      height: 100%;
+      min-height: 100%;
     }
     
     #vscode-content {
-      flex: 1;
-      overflow: auto;
+      /* No overflow: auto - let body scroll */
     }
     
     /* Reset wrapper for VS Code (no sidebar offset) */

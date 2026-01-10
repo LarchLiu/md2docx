@@ -279,6 +279,10 @@ async function handleUpdateContent(payload: UpdateContentPayload): Promise<void>
       onHeadings: (headings) => {
         vscodeBridge.postMessage('HEADINGS_UPDATED', headings);
       },
+      onStreamingComplete: () => {
+        // Streaming is complete, notify scroll controller
+        scrollSyncController?.onStreamingComplete();
+      },
     });
 
     // Track the file we just rendered
@@ -326,6 +330,17 @@ async function handleSetTheme(payload: SetThemePayload): Promise<void> {
 
   try {
     currentThemeId = themeId;
+
+    // Save current reading position before reset
+    const savedLine = scrollSyncController?.getCurrentLine() ?? null;
+    
+    // Reset and immediately set target line so controller is ready
+    // when content starts appearing
+    scrollSyncController?.reset();
+    
+    if (savedLine !== null && scrollSyncController) {
+      scrollSyncController.setTargetLine(savedLine);
+    }
 
     // Load and apply theme (all logic in shared loadAndApplyTheme)
     await loadAndApplyTheme(themeId);
@@ -387,7 +402,14 @@ async function handleExportDocx(): Promise<void> {
 
 function handleSetZoom(payload: SetZoomPayload): void {
   const { zoom } = payload;
+  const oldZoom = currentZoomLevel;
   currentZoomLevel = zoom / 100; // Convert percentage to decimal
+  
+  // Skip if no actual change
+  if (oldZoom === currentZoomLevel) return;
+  
+  // Lock scroll position before zoom change
+  scrollSyncController?.lock();
   
   const container = document.getElementById('markdown-content');
   if (container) {
@@ -644,7 +666,6 @@ function initScrollSyncController(): void {
   scrollSyncController = createScrollSyncController({
     container,
     getLineMapper: getDocument,
-    useWindowScroll: false,
     userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
     onUserScroll: (line) => {
       // Report user scroll to extension for reverse sync (Preview → Editor)

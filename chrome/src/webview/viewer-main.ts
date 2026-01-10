@@ -113,7 +113,6 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     scrollSyncController = createScrollSyncController({
       container,
       getLineMapper: getDocument,
-      useWindowScroll: true,  // Chrome uses window scroll
       userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
       onUserScroll: (line) => {
         // Save scroll position for history/restore
@@ -185,6 +184,10 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     },
     updateActiveTocItem,
     toolbarPrintDisabledTitle,
+    onBeforeZoom: () => {
+      // Lock scroll position before zoom change
+      scrollSyncController?.lock();
+    },
   });
 
   toolbarManager.setInitialZoom(initialZoom);

@@ -21,8 +21,6 @@ export interface LineMapper {
 export interface ScrollOptions {
   /** Content container element */
   container: HTMLElement;
-  /** Whether using window scroll (true for Chrome) or container scroll (false for VSCode) */
-  useWindowScroll?: boolean;
   /** Scroll behavior */
   behavior?: ScrollBehavior;
 }
@@ -32,32 +30,21 @@ export interface ScrollOptions {
  * @returns blockId and progress (0-1) within that block
  */
 export function getBlockAtScrollPosition(options: ScrollOptions): { blockId: string; progress: number } | null {
-  const { container, useWindowScroll = true } = options;
+  const { container } = options;
   
   // Get all block elements
   const blocks = container.querySelectorAll<HTMLElement>('[data-block-id]');
   if (blocks.length === 0) return null;
   
-  // Get current scroll position
-  let scrollTop: number;
-  let viewportTop: number;
-  
-  if (useWindowScroll) {
-    scrollTop = window.scrollY || window.pageYOffset || 0;
-    viewportTop = 0;
-  } else {
-    scrollTop = container.scrollTop;
-    viewportTop = container.getBoundingClientRect().top;
-  }
+  // Get current scroll position (always use window scroll)
+  const scrollTop = window.scrollY || window.pageYOffset || 0;
   
   // Find the block containing current scroll position
   let targetBlock: HTMLElement | null = null;
   
   for (const block of blocks) {
     const rect = block.getBoundingClientRect();
-    const blockTop = useWindowScroll 
-      ? rect.top + scrollTop 
-      : rect.top - viewportTop + scrollTop;
+    const blockTop = rect.top + scrollTop;
     
     if (blockTop > scrollTop) {
       break;
@@ -74,9 +61,7 @@ export function getBlockAtScrollPosition(options: ScrollOptions): { blockId: str
   
   // Calculate progress within block
   const rect = targetBlock.getBoundingClientRect();
-  const blockTop = useWindowScroll 
-    ? rect.top + scrollTop 
-    : rect.top - viewportTop + scrollTop;
+  const blockTop = rect.top + scrollTop;
   const blockHeight = rect.height;
   
   const pixelOffset = scrollTop - blockTop;
@@ -94,40 +79,25 @@ export function scrollToBlock(
   progress: number, 
   options: ScrollOptions
 ): boolean {
-  const { container, useWindowScroll = true, behavior = 'auto' } = options;
+  const { container, behavior = 'auto' } = options;
   
   // Find the block element
   const block = container.querySelector<HTMLElement>(`[data-block-id="${blockId}"]`);
   if (!block) return false;
   
-  // Get current scroll context
-  let currentScroll: number;
-  let viewportTop: number;
-  
-  if (useWindowScroll) {
-    currentScroll = window.scrollY || window.pageYOffset || 0;
-    viewportTop = 0;
-  } else {
-    currentScroll = container.scrollTop;
-    viewportTop = container.getBoundingClientRect().top;
-  }
+  // Get current scroll context (always use window scroll)
+  const currentScroll = window.scrollY || window.pageYOffset || 0;
   
   // Calculate target scroll position
   const rect = block.getBoundingClientRect();
-  const blockTop = useWindowScroll 
-    ? rect.top + currentScroll 
-    : rect.top - viewportTop + currentScroll;
+  const blockTop = rect.top + currentScroll;
   const blockHeight = rect.height;
   
   const clampedProgress = Math.max(0, Math.min(1, progress));
   const scrollTo = blockTop + clampedProgress * blockHeight;
   
   // Perform scroll
-  if (useWindowScroll) {
-    window.scrollTo({ top: Math.max(0, scrollTo), behavior });
-  } else {
-    container.scrollTo({ top: Math.max(0, scrollTo), behavior });
-  }
+  window.scrollTo({ top: Math.max(0, scrollTo), behavior });
   
   return true;
 }
@@ -157,15 +127,11 @@ export function scrollToLine(
   lineMapper: LineMapper | null | undefined,
   options: ScrollOptions
 ): boolean {
-  const { container, useWindowScroll = true, behavior = 'auto' } = options;
+  const { behavior = 'auto' } = options;
   
   // Special case: line <= 0 means scroll to top
   if (line <= 0) {
-    if (useWindowScroll) {
-      window.scrollTo({ top: 0, behavior });
-    } else {
-      container.scrollTo({ top: 0, behavior });
-    }
+    window.scrollTo({ top: 0, behavior });
     return true;
   }
   
@@ -203,6 +169,8 @@ export interface ScrollSyncController {
   setTargetLine(line: number): void;
   /** Get current scroll position as line number */
   getCurrentLine(): number | null;
+  /** Lock current position (call before zoom/layout changes) */
+  lock(): void;
   /** Notify that streaming has completed */
   onStreamingComplete(): void;
   /** Reset to initial state (call when document changes) */
@@ -223,8 +191,6 @@ export interface ScrollSyncControllerOptions {
   container: HTMLElement;
   /** Line mapper getter (called each time to get latest document state) */
   getLineMapper: () => LineMapper;
-  /** Whether using window scroll (true for Chrome) or container scroll (false for VSCode) */
-  useWindowScroll?: boolean;
   /** Callback when user scrolls (for reverse sync) */
   onUserScroll?: (line: number) => void;
   /** Debounce time for user scroll callback (ms) */
@@ -248,7 +214,6 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
   const {
     container,
     getLineMapper,
-    useWindowScroll = false,
     onUserScroll,
     userScrollDebounceMs = 50,
     lockDurationMs = 100,
@@ -266,11 +231,6 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
 
   const scrollOptions: ScrollOptions = {
     container,
-    useWindowScroll,
-  };
-
-  const getScrollTarget = (): HTMLElement | Window => {
-    return useWindowScroll ? window : container;
   };
 
   /**
@@ -295,20 +255,9 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
     // This can happen when DOM element is added but layout hasn't completed
     if (rect.height <= 0) return null;
     
-    let currentScroll: number;
-    let viewportTop: number;
-    
-    if (useWindowScroll) {
-      currentScroll = window.scrollY || window.pageYOffset || 0;
-      viewportTop = 0;
-    } else {
-      currentScroll = container.scrollTop;
-      viewportTop = container.getBoundingClientRect().top;
-    }
-    
-    const blockTop = useWindowScroll 
-      ? rect.top + currentScroll 
-      : rect.top - viewportTop + currentScroll;
+    // Always use window scroll
+    const currentScroll = window.scrollY || window.pageYOffset || 0;
+    const blockTop = rect.top + currentScroll;
     const blockHeight = rect.height;
     
     return blockTop + pos.progress * blockHeight;
@@ -318,7 +267,7 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
    * Get viewport height
    */
   const getViewportHeight = (): number => {
-    return useWindowScroll ? window.innerHeight : container.clientHeight;
+    return window.innerHeight;
   };
 
   /**
@@ -398,14 +347,15 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
         break;
 
       case ScrollState.TRACKING:
-        // Update targetLine and report
+        // Normal user scroll - update targetLine
         updateTargetLineFromScroll();
         reportUserScroll();
         break;
 
       case ScrollState.LOCKED:
-        // Update targetLine but don't report
-        updateTargetLineFromScroll();
+        // Don't update targetLine during LOCKED state
+        // This prevents incorrect targetLine values during resize/content change
+        // when layout hasn't stabilized yet
         break;
     }
   };
@@ -418,6 +368,7 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
 
     const currentHeight = container.scrollHeight;
     if (currentHeight === lastContentHeight) return;
+    
     lastContentHeight = currentHeight;
 
     switch (state) {
@@ -455,28 +406,46 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
   const handleResize = (): void => {
     if (disposed) return;
 
+    // Calculate current line from scroll position
+    const currentLine = getLineForScrollPosition(getLineMapper(), scrollOptions);
+
     // Update lastContentHeight in case it changed
     lastContentHeight = container.scrollHeight;
 
+    // Threshold for scroll correction (in lines)
+    // Only scroll if diff exceeds this to prevent jitter
+    const SCROLL_THRESHOLD = 0.5;
+
     switch (state) {
       case ScrollState.INITIAL:
-      case ScrollState.RESTORING:
         // Don't interfere during initial load
+        break;
+        
+      case ScrollState.RESTORING:
+        // In RESTORING state, try to scroll to targetLine if possible
+        // This handles the case where resize happens during restore
+        if (canScrollToTarget()) {
+          doScroll(targetLine);
+          enterLocked();
+        }
         break;
 
       case ScrollState.TRACKING:
       case ScrollState.LOCKED:
-        // Maintain position on resize
-        doScroll(targetLine);
+        // During resize, always enter LOCKED state to prevent scroll events
+        // from corrupting targetLine, then scroll to maintain position
+        const diff = currentLine !== null ? Math.abs(currentLine - targetLine) : Infinity;
+        if (diff > SCROLL_THRESHOLD) {
+          doScroll(targetLine);
+        }
+        // Always enter LOCKED during resize to protect targetLine
         enterLocked();
         break;
     }
   };
 
   const setupListeners = (): void => {
-    const target = getScrollTarget();
-
-    target.addEventListener('scroll', handleScroll, { passive: true });
+    window.addEventListener('scroll', handleScroll, { passive: true });
 
     // ResizeObserver for viewport resize (width change causes text reflow)
     if (typeof ResizeObserver !== 'undefined') {
@@ -499,8 +468,7 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
   };
 
   const removeListeners = (): void => {
-    const target = getScrollTarget();
-    target.removeEventListener('scroll', handleScroll);
+    window.removeEventListener('scroll', handleScroll);
     resizeObserver?.disconnect();
     mutationObserver?.disconnect();
     if (userScrollDebounceTimer) clearTimeout(userScrollDebounceTimer);
@@ -551,6 +519,14 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
       return getLineForScrollPosition(getLineMapper(), scrollOptions);
     },
 
+    lock(): void {
+      // Lock current position before zoom/layout changes
+      // This prevents scroll events from corrupting targetLine during layout transitions
+      if (state === ScrollState.TRACKING) {
+        enterLocked();
+      }
+    },
+
     onStreamingComplete(): void {
       if (state === ScrollState.RESTORING) {
         // Try to jump to targetLine first
@@ -563,11 +539,7 @@ export function createScrollSyncController(options: ScrollSyncControllerOptions)
           const viewportHeight = getViewportHeight();
           const maxScroll = Math.max(0, documentHeight - viewportHeight);
           
-          if (useWindowScroll) {
-            window.scrollTo({ top: maxScroll, behavior: 'auto' });
-          } else {
-            container.scrollTo({ top: maxScroll, behavior: 'auto' });
-          }
+          window.scrollTo({ top: maxScroll, behavior: 'auto' });
           
           // Update targetLine to current position
           updateTargetLineFromScroll();

@@ -46,7 +46,8 @@ export function createToolbarManager(options: ToolbarManagerOptions): ToolbarMan
     docxExporter,
     cancelScrollRestore,
     updateActiveTocItem,
-    toolbarPrintDisabledTitle
+    toolbarPrintDisabledTitle,
+    onBeforeZoom
   } = options;
 
   // Layout configurations
@@ -71,7 +72,14 @@ export function createToolbarManager(options: ToolbarManagerOptions): ToolbarMan
    * @param saveState - Whether to save state to storage
    */
   function applyZoom(newLevel: number, saveState = true): void {
+    const oldLevel = currentZoomLevel;
     currentZoomLevel = Math.max(50, Math.min(400, newLevel));
+    
+    // Skip if no actual change
+    if (oldLevel === currentZoomLevel) return;
+    
+    // Lock scroll position before zoom change to prevent targetLine corruption
+    onBeforeZoom?.();
     
     const zoomLevelSpan = document.getElementById('zoom-level');
     const contentDiv = document.getElementById('markdown-content');

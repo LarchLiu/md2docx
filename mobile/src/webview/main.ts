@@ -138,7 +138,6 @@ function initScrollSyncController(): void {
   scrollSyncController = createScrollSyncController({
     container,
     getLineMapper: getDocument,
-    useWindowScroll: true,  // Mobile uses window scroll
     userScrollDebounceMs: 10,  // Reduced for faster reverse sync feedback
     onUserScroll: (line) => {
       // Report scroll position to host app for saving
@@ -264,6 +263,10 @@ async function handleLoadMarkdown(payload: LoadMarkdownPayload): Promise<void> {
         frontmatterDisplay,
         onHeadings: (headings) => {
           bridge.postMessage('HEADINGS_UPDATED', headings);
+        },
+        onStreamingComplete: () => {
+          // Streaming is complete, notify scroll controller
+          scrollSyncController?.onStreamingComplete();
         },
       });
 
@@ -459,9 +462,17 @@ window.exportDocx = () => {
 
 window.setFontSize = (size: number) => {
   try {
+    const oldZoom = currentZoomLevel;
     // Use zoom like Chrome extension (size is treated as percentage base)
     // 16pt = 100%, 12pt = 75%, 24pt = 150%
     currentZoomLevel = size / 16;
+    
+    // Skip if no actual change
+    if (oldZoom === currentZoomLevel) return;
+    
+    // Lock scroll position before font size change
+    scrollSyncController?.lock();
+    
     const container = document.getElementById('markdown-content');
     if (container) {
       (container as HTMLElement).style.zoom = String(currentZoomLevel);

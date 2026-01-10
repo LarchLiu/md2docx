@@ -36,6 +36,8 @@ export interface ToolbarManagerOptions {
   cancelScrollRestore: () => void;
   updateActiveTocItem: () => void;
   toolbarPrintDisabledTitle: string;
+  /** Called before zoom changes to lock scroll position */
+  onBeforeZoom?: () => void;
 }
 
 /**
