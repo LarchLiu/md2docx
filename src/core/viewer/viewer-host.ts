@@ -487,7 +487,7 @@ export interface ThemeSwitchFlowOptions {
 }
 
 /**
- * Unified theme switch flow for VSCode and Mobile.
+ * Unified theme switch flow for all platforms (Chrome, VSCode, Mobile).
  * 
  * This function handles:
  * 1. Save current scroll position
@@ -495,8 +495,6 @@ export interface ThemeSwitchFlowOptions {
  * 3. Apply the new theme
  * 4. Optionally save the theme selection
  * 5. Re-render content if needed
- * 
- * Note: Chrome uses page reload for theme switch, so this doesn't apply.
  * 
  * @example
  * ```typescript

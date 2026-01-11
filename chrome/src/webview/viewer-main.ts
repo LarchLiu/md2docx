@@ -27,6 +27,7 @@ import {
   createViewerScrollSync,
   setCurrentFileKey,
   renderMarkdownFlow,
+  handleThemeSwitchFlow,
 } from '../../../src/core/viewer/viewer-host';
 
 // Extend Window interface for global access
@@ -268,7 +269,7 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
     }, 300);
   });
 
-  async function renderMarkdown(markdown: string, savedScrollLine = 0): Promise<void> {
+  async function renderMarkdown(markdown: string, savedScrollLine = 0, forceRender?: boolean): Promise<void> {
     const container = document.getElementById('markdown-content') as HTMLElement | null;
     if (!container) {
       // eslint-disable-next-line no-console
@@ -280,7 +281,7 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
       markdown,
       container,
       fileChanged: true, // Chrome: single document per page
-      forceRender: false, // Chrome: theme change reloads page
+      forceRender: forceRender ?? false,
       zoomLevel: toolbarManager.getZoomLevel() / 100,
       scrollController: scrollSyncController,
       renderer: pluginRenderer,
@@ -300,42 +301,77 @@ export async function initializeViewerMain(options: ViewerMainOptions): Promise<
       afterRender: updateActiveTocItem,
     });
   }
-}
 
-/**
- * Setup message listener for locale/theme changes
- */
-export function setupMessageListener(platform: PlatformAPI): void {
-  platform.message.addListener((message: unknown) => {
-    if (!message || typeof message !== 'object') {
+  /**
+   * Handle theme change - use handleThemeSwitchFlow (same as VSCode/Mobile)
+   */
+  async function handleSetTheme(themeId: string): Promise<void> {
+    // Skip if same theme
+    if (themeId === currentThemeId) {
       return;
     }
 
-    const msg = message as IncomingBroadcastMessage;
+    currentThemeId = themeId;
 
-    const nextLocale = (locale: string) => {
-      Localization.setPreferredLocale(locale)
-        .catch((error) => {
-          // eslint-disable-next-line no-console
-          console.error('Failed to update locale in main script:', error);
-        })
-        .finally(() => {
-          window.location.reload();
-        });
-    };
-
-    if (msg.type === 'LOCALE_CHANGED') {
-      const payload = msg.payload && typeof msg.payload === 'object' ? (msg.payload as Record<string, unknown>) : null;
-      const locale = payload && typeof payload.locale === 'string' && payload.locale.length > 0 ? payload.locale : DEFAULT_SETTING_LOCALE;
-      nextLocale(locale);
-      return;
+    try {
+      await handleThemeSwitchFlow({
+        themeId,
+        scrollController: scrollSyncController,
+        applyTheme: loadAndApplyTheme,
+        saveTheme: (id) => themeManager.saveSelectedTheme(id),
+        rerender: async (scrollLine) => {
+          // Re-render content with forceRender to regenerate diagrams
+          await renderMarkdown(rawMarkdown, scrollLine, true);
+        },
+      });
+    } catch (error) {
+      // eslint-disable-next-line no-console
+      console.error('[Chrome] Theme change failed:', error);
     }
+  }
 
-    if (msg.type === 'THEME_CHANGED') {
-      window.location.reload();
-      return;
-    }
-  });
+  /**
+   * Setup message listener for locale/theme changes
+   */
+  function setupMessageListener(): void {
+    platform.message.addListener((message: unknown) => {
+      if (!message || typeof message !== 'object') {
+        return;
+      }
+
+      const msg = message as IncomingBroadcastMessage;
+
+      const nextLocale = (locale: string) => {
+        Localization.setPreferredLocale(locale)
+          .catch((error) => {
+            // eslint-disable-next-line no-console
+            console.error('Failed to update locale in main script:', error);
+          })
+          .finally(() => {
+            window.location.reload();
+          });
+      };
+
+      if (msg.type === 'LOCALE_CHANGED') {
+        const payload = msg.payload && typeof msg.payload === 'object' ? (msg.payload as Record<string, unknown>) : null;
+        const locale = payload && typeof payload.locale === 'string' && payload.locale.length > 0 ? payload.locale : DEFAULT_SETTING_LOCALE;
+        nextLocale(locale);
+        return;
+      }
+
+      if (msg.type === 'THEME_CHANGED') {
+        const payload = msg.payload && typeof msg.payload === 'object' ? (msg.payload as Record<string, unknown>) : null;
+        const themeId = payload && typeof payload.themeId === 'string' ? payload.themeId : null;
+        if (themeId) {
+          void handleSetTheme(themeId);
+        }
+        return;
+      }
+    });
+  }
+
+  // Setup message listener for theme/locale changes
+  setupMessageListener();
 }
 
 /**
@@ -343,8 +379,6 @@ export function setupMessageListener(platform: PlatformAPI): void {
  * Call this after Localization.init() completes
  */
 export function startViewer(options: ViewerMainOptions): void {
-  setupMessageListener(options.platform);
-  
   Localization.init()
     .catch((error) => {
       // eslint-disable-next-line no-console
