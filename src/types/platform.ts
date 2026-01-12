@@ -11,7 +11,7 @@ import type { FileState } from './core';
 // Platform Identification
 // =============================================================================
 
-export type PlatformType = 'chrome' | 'firefox' | 'mobile' | 'vscode';
+export type PlatformType = 'chrome' | 'firefox' | 'mobile' | 'vscode' | 'node';
 
 // =============================================================================
 // Platform Service Interfaces

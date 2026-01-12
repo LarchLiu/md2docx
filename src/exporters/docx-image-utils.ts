@@ -164,24 +164,136 @@ export function convertPluginResultToDOCX(renderResult: UnifiedRenderResult, plu
  * @returns Promise with width and height
  */
 export async function getImageDimensions(buffer: Uint8Array, contentType: string): Promise<ImageDimensions> {
-  return new Promise((resolve, reject) => {
-    const safeArrayBuffer = buffer.slice().buffer;
-    const blob = new Blob([safeArrayBuffer], { type: contentType });
-    const url = URL.createObjectURL(blob);
-    const img = new Image();
+  const canUseDom =
+    typeof Blob !== 'undefined' &&
+    typeof URL !== 'undefined' &&
+    typeof (URL as any).createObjectURL === 'function' &&
+    typeof Image !== 'undefined';
 
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve({ width: img.width, height: img.height });
-    };
+  // Browser path (Chrome/Firefox/VSCode Webview/Mobile WebView)
+  if (canUseDom) {
+    return await new Promise((resolve, reject) => {
+      const safeArrayBuffer = buffer.slice().buffer;
+      const blob = new Blob([safeArrayBuffer], { type: contentType });
+      const url = URL.createObjectURL(blob);
+      const img = new Image();
 
-    img.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error('Failed to load image'));
-    };
+      img.onload = () => {
+        URL.revokeObjectURL(url);
+        resolve({ width: img.width, height: img.height });
+      };
 
-    img.src = url;
-  });
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        reject(new Error('Failed to load image'));
+      };
+
+      img.src = url;
+    });
+  }
+
+  // Node/CLI path: parse dimensions from bytes (no DOM available).
+  const bytes = buffer;
+
+  const readU16LE = (o: number) => (bytes[o] | (bytes[o + 1] << 8)) >>> 0;
+  const readU16BE = (o: number) => ((bytes[o] << 8) | bytes[o + 1]) >>> 0;
+  const readU32LE = (o: number) =>
+    (bytes[o] | (bytes[o + 1] << 8) | (bytes[o + 2] << 16) | (bytes[o + 3] << 24)) >>> 0;
+  const readU32BE = (o: number) =>
+    (((bytes[o] << 24) >>> 0) | (bytes[o + 1] << 16) | (bytes[o + 2] << 8) | bytes[o + 3]) >>> 0;
+
+  try {
+    // PNG
+    if (
+      bytes.length >= 24 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47
+    ) {
+      const width = readU32BE(16);
+      const height = readU32BE(20);
+      return { width, height };
+    }
+
+    // GIF
+    if (bytes.length >= 10 && bytes[0] === 0x47 && bytes[1] === 0x49 && bytes[2] === 0x46) {
+      const width = readU16LE(6);
+      const height = readU16LE(8);
+      return { width, height };
+    }
+
+    // BMP
+    if (bytes.length >= 26 && bytes[0] === 0x42 && bytes[1] === 0x4d) {
+      const width = readU32LE(18);
+      // Height can be negative (top-down BMP)
+      const rawHeight = readU32LE(22);
+      const height = rawHeight > 0x7fffffff ? (0x100000000 - rawHeight) : rawHeight;
+      return { width, height: Math.abs(height) };
+    }
+
+    // JPEG
+    if (bytes.length >= 4 && bytes[0] === 0xff && bytes[1] === 0xd8) {
+      let offset = 2;
+      while (offset + 4 < bytes.length) {
+        if (bytes[offset] !== 0xff) {
+          offset++;
+          continue;
+        }
+        // Skip fill bytes 0xFF
+        while (offset < bytes.length && bytes[offset] === 0xff) offset++;
+        const marker = bytes[offset];
+        offset++;
+
+        // Standalone markers
+        if (marker === 0xd9 || marker === 0xda) break;
+        if (offset + 1 >= bytes.length) break;
+
+        const segmentLength = readU16BE(offset);
+        if (segmentLength < 2) break;
+
+        // SOF markers (baseline/progressive/etc) that contain dimensions
+        const isSOF =
+          (marker >= 0xc0 && marker <= 0xc3) ||
+          (marker >= 0xc5 && marker <= 0xc7) ||
+          (marker >= 0xc9 && marker <= 0xcb) ||
+          (marker >= 0xcd && marker <= 0xcf);
+
+        if (isSOF && offset + 7 < bytes.length) {
+          const height = readU16BE(offset + 3);
+          const width = readU16BE(offset + 5);
+          return { width, height };
+        }
+
+        offset += segmentLength;
+      }
+    }
+
+    // WEBP (best-effort: VP8X / VP8L)
+    if (
+      bytes.length >= 30 &&
+      bytes[0] === 0x52 && bytes[1] === 0x49 && bytes[2] === 0x46 && bytes[3] === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50
+    ) {
+      const chunkType = String.fromCharCode(bytes[12], bytes[13], bytes[14], bytes[15]);
+      if (chunkType === 'VP8X' && bytes.length >= 30) {
+        const widthMinusOne = bytes[24] | (bytes[25] << 8) | (bytes[26] << 16);
+        const heightMinusOne = bytes[27] | (bytes[28] << 8) | (bytes[29] << 16);
+        return { width: widthMinusOne + 1, height: heightMinusOne + 1 };
+      }
+      if (chunkType === 'VP8L' && bytes.length >= 25 && bytes[20] === 0x2f) {
+        const bits = readU32LE(21);
+        const width = (bits & 0x3fff) + 1;
+        const height = ((bits >> 14) & 0x3fff) + 1;
+        return { width, height };
+      }
+    }
+  } catch {
+    // Fall through to default
+  }
+
+  // Unknown format or parse failure; return a safe default.
+  return { width: 96, height: 96 };
 }
 
 /**

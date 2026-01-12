@@ -24,6 +24,112 @@ const DEFAULT_CODE_STYLE = {
   size: 20
 };
 
+function decodeHtmlEntities(input: string): string {
+  if (!input) return '';
+  return input.replace(/&(#x?[0-9a-fA-F]+|[a-zA-Z]+);/g, (_m, ent: string) => {
+    const lower = String(ent).toLowerCase();
+    if (lower === 'lt') return '<';
+    if (lower === 'gt') return '>';
+    if (lower === 'amp') return '&';
+    if (lower === 'quot') return '"';
+    if (lower === 'apos') return "'";
+    if (lower === 'nbsp') return ' ';
+
+    // Numeric entities: &#123; or &#x1f;
+    if (lower.startsWith('#x')) {
+      const codePoint = Number.parseInt(lower.slice(2), 16);
+      if (Number.isFinite(codePoint)) {
+        try {
+          return String.fromCodePoint(codePoint);
+        } catch {
+          return '';
+        }
+      }
+    }
+    if (lower.startsWith('#')) {
+      const codePoint = Number.parseInt(lower.slice(1), 10);
+      if (Number.isFinite(codePoint)) {
+        try {
+          return String.fromCodePoint(codePoint);
+        } catch {
+          return '';
+        }
+      }
+    }
+
+    return `&${ent};`;
+  });
+}
+
+function appendHighlightedRunsFromHtml(
+  html: string,
+  runs: TextRun[],
+  getColor: (classList: string[] | null) => string | null,
+  appendRuns: (text: string, target: TextRun[], color: string | null) => void,
+  defaultColor: string
+): void {
+  const stack: string[][] = [];
+  let buffer = '';
+
+  const currentColor = (): string => {
+    for (let i = stack.length - 1; i >= 0; i--) {
+      const c = getColor(stack[i]);
+      if (c) return c;
+    }
+    return defaultColor;
+  };
+
+  const flush = (): void => {
+    if (!buffer) return;
+    const decoded = decodeHtmlEntities(buffer);
+    appendRuns(decoded, runs, currentColor());
+    buffer = '';
+  };
+
+  let i = 0;
+  while (i < html.length) {
+    const ch = html[i];
+    if (ch !== '<') {
+      buffer += ch;
+      i++;
+      continue;
+    }
+
+    const end = html.indexOf('>', i + 1);
+    if (end === -1) {
+      // Treat remainder as text
+      buffer += html.slice(i);
+      break;
+    }
+
+    const rawTag = html.slice(i + 1, end).trim();
+    const tag = rawTag.toLowerCase();
+
+    // Before changing style stack, flush accumulated text with current style.
+    if (tag.startsWith('span') || tag === '/span' || tag.startsWith('br')) {
+      flush();
+    }
+
+    if (tag.startsWith('span')) {
+      // Extract class attribute from rawTag (keep original for case)
+      const m = rawTag.match(/\bclass\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
+      const classValue = (m?.[1] ?? m?.[2] ?? '').trim();
+      const classes = classValue ? classValue.split(/\s+/).filter(Boolean) : [];
+      stack.push(classes);
+    } else if (tag === '/span') {
+      stack.pop();
+    } else if (tag.startsWith('br')) {
+      buffer += '\n';
+    } else {
+      // Ignore unknown tags but keep their inner text (already handled by buffer)
+    }
+
+    i = end + 1;
+  }
+
+  flush();
+}
+
 /**
  * Create a code highlighter for DOCX export
  * @param themeStyles - Theme configuration with code colors
@@ -148,6 +254,7 @@ export function createCodeHighlighter(themeStyles: DOCXThemeStyles | null): Code
    */
   function getHighlightedRunsForCode(code: string, language: string | null | undefined): TextRun[] {
     const runs: TextRun[] = [];
+    const hasDom = (typeof document !== 'undefined') && (typeof Node !== 'undefined');
 
     if (!code) {
       // Use theme code font and size (already converted to half-points in theme-to-docx.js)
@@ -164,7 +271,7 @@ export function createCodeHighlighter(themeStyles: DOCXThemeStyles | null): Code
       return runs;
     }
 
-    let highlightResult: ReturnType<typeof hljs.highlight> | null = null;
+    let highlightResult: { value: string } | null = null;
 
     try {
       if (language && hljs.getLanguage(language)) {
@@ -182,10 +289,22 @@ export function createCodeHighlighter(themeStyles: DOCXThemeStyles | null): Code
 
     const defaultColor = codeColors.foreground;
 
+    // highlight.js returns HTML; parsing that requires DOM APIs.
     if (highlightResult && highlightResult.value) {
-      const container = document.createElement('div');
-      container.innerHTML = highlightResult.value;
-      collectHighlightedRuns(container, runs, defaultColor);
+      if (hasDom) {
+        const container = document.createElement('div');
+        container.innerHTML = highlightResult.value;
+        collectHighlightedRuns(container, runs, defaultColor);
+      } else {
+        // Node/CLI: parse highlight.js HTML without DOM.
+        appendHighlightedRunsFromHtml(
+          highlightResult.value,
+          runs,
+          (cls) => getHighlightColor(cls),
+          appendCodeTextRuns,
+          defaultColor
+        );
+      }
     }
 
     if (runs.length === 0) {

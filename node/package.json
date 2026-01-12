@@ -1,0 +1,47 @@
+{
+  "name": "@cloudgeek/md2docx",
+  "version": "0.0.1",
+  "description": "Markdown → DOCX converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
+  "type": "module",
+  "private": false,
+  "bin": {
+    "md2docx": "dist/md2docx.mjs"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.mjs"
+    }
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch --run",
+    "cli": "node dist/md2docx.mjs",
+    "test": "node test/node.test.mjs",
+    "postinstall": "puppeteer browsers install chrome",
+    "prepublishOnly": "node build.mjs"
+  },
+  "license": "ISC",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/xicilion/markdown-viewer-extension.git"
+  },
+  "homepage": "https://github.com/xicilion/markdown-viewer-extension",
+  "bugs": {
+    "url": "https://github.com/xicilion/markdown-viewer-extension/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "puppeteer": "24.35.0"
+  }
+}

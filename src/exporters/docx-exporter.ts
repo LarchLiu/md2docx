@@ -202,7 +202,11 @@ class DocxExporter {
     onProgress: DOCXProgressCallback | null = null
   ): Promise<DOCXExportResult> {
     try {
-      this.setBaseUrl(window.location.href);
+      // In browser platforms, use the current page URL as base.
+      // In Node/CLI, callers should set base via setBaseUrl() before export.
+      if (typeof window !== 'undefined' && window.location?.href) {
+        this.setBaseUrl(window.location.href);
+      }
 
       // Load export-related settings via platform abstraction
       try {
