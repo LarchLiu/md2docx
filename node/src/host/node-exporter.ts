@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import DocxExporter from '../../../src/exporters/docx-exporter';
 import { createBrowserRenderer, type BrowserRenderer, type PdfOptions } from './browser-renderer';
 import { createNodePlatform } from './node-platform';
+import { plugins } from '../../../src/plugins/index';
 import type { PluginRenderer, RendererThemeConfig } from '../../../src/types/index';
 
 export type Md2DocxOptions = {
@@ -269,6 +270,14 @@ body {
 .markdown-body, #markdown-content {
   max-width: 100%;
   padding: 20px;
+}
+
+/* Wide content auto-scaling for PDF */
+/* Use transform scale to fit wide content within page width */
+/* The actual scale value will be set dynamically via JavaScript */
+#markdown-content > div[style*="width"] {
+  transform-origin: top left;
+  page-break-inside: avoid;
 }
 
 /* Headings */
@@ -695,11 +704,26 @@ export class NodePdfExporter {
     basePath: string,
     themeConfig: RendererThemeConfig
   ): Promise<string> {
+    // Build supported languages from plugin system
+    // Only include plugins that handle 'code' nodes (not 'html' or 'image' only)
+    const pluginLangs = plugins
+      .filter(p => p.nodeSelector.includes('code'))
+      .map(p => p.language)
+      .filter((lang): lang is string => lang !== null);
+
+    // Add common aliases that plugins support via extractContent override
+    const aliases = ['graphviz', 'gv', 'vegalite'];
+    const supportedLangs = [...pluginLangs, ...aliases].join('|');
+
     // Match code blocks with diagram languages
     // rehype-highlight adds "hljs" class, so we need to match both formats:
     // - class="language-mermaid" (without highlight)
     // - class="hljs language-mermaid" (with highlight)
-    const codeBlockRegex = /<pre><code class="(?:hljs )?language-(mermaid|graphviz|dot|vega|vega-lite|infographic)">([\s\S]*?)<\/code><\/pre>/gi;
+    // Note: \\s\\S must be double-escaped in template strings for RegExp constructor
+    const codeBlockRegex = new RegExp(
+      `<pre><code class="(?:hljs )?language-(${supportedLangs})">([\\s\\S]*?)<\\/code><\\/pre>`,
+      'gi'
+    );
 
     const matches = [...html.matchAll(codeBlockRegex)];
 
@@ -707,10 +731,10 @@ export class NodePdfExporter {
       const [fullMatch, lang, code] = match;
       const decodedCode = this.decodeHtmlEntities(code);
 
-      // Determine render type
+      // Normalize language aliases to renderer types
       let renderType = lang.toLowerCase();
-      if (renderType === 'graphviz') renderType = 'dot';
-      if (renderType === 'vega') renderType = 'vega-lite';
+      if (renderType === 'graphviz' || renderType === 'gv') renderType = 'dot';
+      if (renderType === 'vegalite') renderType = 'vega-lite';
 
       try {
         const result = await browserRenderer.render(renderType, decodedCode, basePath, themeConfig);
