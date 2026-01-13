@@ -4,7 +4,7 @@
  * Applies hand-drawn effect to SVG elements using rough.js
  * Processes borders, lines, and fills while preserving text
  */
-import rough from 'roughjs/bundled/rough.esm.js';
+import rough from 'roughjs';
 
 export interface RoughSvgOptions {
   /** Roughness of hand-drawn effect (0 = smooth, 1+ = rough) */

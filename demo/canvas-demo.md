@@ -277,6 +277,100 @@ JSON Canvas 支持四种节点类型：text、file、link、group
 
 ---
 
+## 9. 节点间距测试
+
+测试节点间距较近时的连线效果：
+
+### 竖直方向 - 密集节点
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 100, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 0, "y": 60, "width": 100, "height": 50},
+    {"id": "c", "type": "text", "text": "C", "x": 0, "y": 120, "width": 100, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "bottom", "toNode": "b", "toSide": "top"},
+    {"id": "e2", "fromNode": "b", "fromSide": "bottom", "toNode": "c", "toSide": "top"}
+  ]
+}
+```
+
+### 水平方向 - 密集节点
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 80, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 90, "y": 0, "width": 80, "height": 50},
+    {"id": "c", "type": "text", "text": "C", "x": 180, "y": 0, "width": 80, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "right", "toNode": "b", "toSide": "left"},
+    {"id": "e2", "fromNode": "b", "fromSide": "right", "toNode": "c", "toSide": "left"}
+  ]
+}
+```
+
+### 近距离双向箭头
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 100, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 0, "y": 60, "width": 100, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "bottom", "toNode": "b", "toSide": "top", "fromEnd": "arrow", "toEnd": "arrow", "label": "双向10px"}
+  ]
+}
+```
+
+### 极近距离双向箭头（4px间隔 - 箭头会明显变小）
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 100, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 0, "y": 54, "width": 100, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "bottom", "toNode": "b", "toSide": "top", "fromEnd": "arrow", "toEnd": "arrow", "label": "双向4px"}
+  ]
+}
+```
+
+### 近距离无箭头
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 100, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 0, "y": 60, "width": 100, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "bottom", "toNode": "b", "toSide": "top", "fromEnd": "none", "toEnd": "none", "label": "无箭头"}
+  ]
+}
+```
+
+### 极近距离（5px间隔）
+
+```canvas
+{
+  "nodes": [
+    {"id": "a", "type": "text", "text": "A", "x": 0, "y": 0, "width": 100, "height": 50},
+    {"id": "b", "type": "text", "text": "B", "x": 0, "y": 55, "width": 100, "height": 50}
+  ],
+  "edges": [
+    {"id": "e1", "fromNode": "a", "fromSide": "bottom", "toNode": "b", "toSide": "top", "label": "5px"}
+  ]
+}
+```
+
+---
+
 ## 参考链接
 
 - [JSON Canvas 官方规范](https://jsoncanvas.org/spec/1.0/)

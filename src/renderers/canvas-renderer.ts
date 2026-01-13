@@ -371,13 +371,51 @@ export class JsonCanvasRenderer extends BaseRenderer {
     
     let svg = '';
     
-    // When nodes are very close (less than 80px straight line distance), only draw a straight line with arrow
-    const minDistanceForCurve = 15;
+    // For close nodes, use straight line; for bidirectional arrows need larger threshold
+    const hasEndArrow = edge.toEnd === 'arrow' || edge.toEnd === undefined;
+    const hasStartArrow = edge.fromEnd === 'arrow';
+    const arrowCount = (hasEndArrow ? 1 : 0) + (hasStartArrow ? 1 : 0);
+    
+    // Bidirectional arrows need larger threshold (30px), single arrow uses 15px
+    const minDistanceForCurve = arrowCount >= 2 ? 30 : 15;
+    
     if (straightDist < minDistanceForCurve) {
-      const markerEnd = (edge.toEnd === 'arrow' || edge.toEnd === undefined) ? `marker-end="url(#${markerId})"` : '';
-      const markerStart = edge.fromEnd === 'arrow' ? `marker-start="url(#${markerId}-start)"` : '';
+      // Calculate arrow scale based on available space
+      // For single arrow: arrow can use up to 60% of distance
+      // For bidirectional: each arrow gets 40% of distance (total 80%, leaving 20% gap for line)
+      let arrowScale = 1;
+      if (arrowCount > 0) {
+        const maxArrowRatio = arrowCount >= 2 ? 0.4 : 0.6;
+        const availablePerArrow = straightDist * maxArrowRatio;
+        if (availablePerArrow < ARROW_WIDTH) {
+          arrowScale = availablePerArrow / ARROW_WIDTH;
+        }
+      }
       
-      // Draw a straight line between the two points
+      // Use scaled marker IDs for close nodes
+      const scaledMarkerId = `${markerId}-scaled`;
+      const markerEnd = hasEndArrow ? `marker-end="url(#${scaledMarkerId})"` : '';
+      const markerStart = hasStartArrow ? `marker-start="url(#${scaledMarkerId}-start)"` : '';
+      
+      // Generate inline scaled markers for this edge
+      const scaledW = ARROW_WIDTH * arrowScale;
+      const scaledH = ARROW_HEIGHT * arrowScale;
+      
+      let markers = '';
+      if (hasEndArrow) {
+        markers += `<defs><marker id="${scaledMarkerId}" markerWidth="${scaledW}" markerHeight="${scaledH}" refX="${scaledW}" refY="${scaledH / 2}" orient="auto" markerUnits="userSpaceOnUse">
+          <polygon points="0 0, ${scaledW} ${scaledH / 2}, 0 ${scaledH}" fill="${color}"/>
+        </marker></defs>`;
+      }
+      if (hasStartArrow) {
+        // For start arrow, refX=0 positions the tip at line start, base extends along the line
+        markers += `<defs><marker id="${scaledMarkerId}-start" markerWidth="${scaledW}" markerHeight="${scaledH}" refX="0" refY="${scaledH / 2}" orient="auto" markerUnits="userSpaceOnUse">
+          <polygon points="${scaledW} 0, 0 ${scaledH / 2}, ${scaledW} ${scaledH}" fill="${color}"/>
+        </marker></defs>`;
+      }
+      
+      // Draw a straight line between the two points with scaled arrows
+      svg += markers;
       svg += `<line x1="${start.x}" y1="${start.y}" x2="${end.x}" y2="${end.y}" stroke="${color}" stroke-width="2" ${markerEnd} ${markerStart}/>`;
     } else {
       // For distant nodes, draw the curved path

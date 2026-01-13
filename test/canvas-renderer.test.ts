@@ -237,7 +237,7 @@ describe('JsonCanvasRenderer', () => {
         ]
       });
       
-      // Start arrow: refX=0 and reversed points means tip points back toward start node
+      // Start arrow: refX=0 positions the tip at line start, base extends along the line
       assert.ok(svg.includes('id="arrow-e1-start"'), 'Should have start arrow marker defined');
       assert.ok(svg.includes('refX="0"'), 'Start arrow should have refX=0');
       assert.ok(svg.includes('points="7 0, 0 3, 7 6"'), 'Start arrow should point left (toward start)');
@@ -306,7 +306,7 @@ describe('JsonCanvasRenderer', () => {
       assert.ok(svg.includes('<marker'), 'Should contain marker definitions');
     });
 
-    it('should have white background', () => {
+    it('should not have white background (transparent canvas)', () => {
       const svg = generateSvg({
         nodes: [
           { id: 'n1', type: 'text', text: 'Test', x: 0, y: 0, width: 100, height: 60 }
@@ -314,7 +314,8 @@ describe('JsonCanvasRenderer', () => {
         edges: []
       });
       
-      assert.ok(svg.includes('fill="white"'), 'Should have white background rect');
+      // Canvas should be transparent, no full-canvas white background rect
+      assert.ok(!svg.includes('<rect width="') || !svg.match(/<rect width="[^"]*" height="[^"]*" fill="white"/), 'Should not have full-canvas white background');
     });
   });
 
@@ -380,6 +381,144 @@ describe('JsonCanvasRenderer', () => {
       });
       
       assert.ok(svg.includes('<svg'), 'Should still render SVG');
+    });
+  });
+
+  describe('close nodes edge rendering', () => {
+    it('should handle vertical nodes with small gap using straight line', () => {
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 70, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top' }
+        ]
+      });
+      
+      // For close nodes (distance < 80px), should use straight line instead of bezier curve
+      assert.ok(svg.includes('<line'), 'Should have line element for close nodes');
+      assert.ok(svg.includes('marker-end='), 'Should have end marker');
+    });
+
+    it('should handle horizontal nodes with small gap using straight line', () => {
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 110, y: 0, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'right', toNode: 'b', toSide: 'left' }
+        ]
+      });
+      
+      // For close nodes (distance < 80px), should use straight line instead of bezier curve
+      assert.ok(svg.includes('<line'), 'Should have line element for close nodes');
+      assert.ok(svg.includes('marker-end='), 'Should have end marker');
+    });
+
+    it('should use bezier curve for distant nodes', () => {
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 200, y: 0, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'right', toNode: 'b', toSide: 'left' }
+        ]
+      });
+      
+      // For distant nodes (distance >= 80px), should use bezier curve
+      assert.ok(svg.includes('<path'), 'Should have path element for distant nodes');
+      assert.ok(svg.includes('C'), 'Should have cubic bezier');
+      assert.ok(svg.includes('marker-end='), 'Should have end marker');
+    });
+
+    it('should scale down arrows when distance is less than arrow width', () => {
+      // Nodes with only 5px gap (less than ARROW_WIDTH=7)
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 65, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top' }
+        ]
+      });
+      
+      // Should use scaled marker for very close nodes
+      assert.ok(svg.includes('arrow-e1-scaled'), 'Should have scaled marker ID for close nodes');
+      assert.ok(svg.includes('markerUnits="userSpaceOnUse"'), 'Scaled markers should use userSpaceOnUse');
+    });
+
+    it('should scale single arrow to 60% of distance', () => {
+      // 10px gap, single arrow should be 10 * 0.6 = 6px
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 70, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top', toEnd: 'arrow' }
+        ]
+      });
+      
+      // Single arrow: 10px * 0.6 = 6px width
+      assert.ok(svg.includes('markerWidth="6"'), 'Single arrow should be scaled to 6px (60% of 10px)');
+    });
+
+    it('should scale bidirectional arrows to 40% of distance each', () => {
+      // 10px gap, each arrow should be 10 * 0.4 = 4px (total 80%, leaving 20% gap)
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 70, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top', fromEnd: 'arrow', toEnd: 'arrow' }
+        ]
+      });
+      
+      // Bidirectional: each arrow 10px * 0.4 = 4px width
+      assert.ok(svg.includes('markerWidth="4"'), 'Bidirectional arrows should be scaled to 4px each (40% of 10px)');
+      // Both arrows should have same size
+      const matches = svg.match(/markerWidth="4"/g);
+      assert.strictEqual(matches?.length, 2, 'Both arrows should have 4px width');
+    });
+
+    it('should scale arrows for bidirectional edges when distance is less than double arrow width', () => {
+      // Nodes with 10px gap, bidirectional arrows need 14px total
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 70, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top', fromEnd: 'arrow', toEnd: 'arrow' }
+        ]
+      });
+      
+      // Should use scaled markers for bidirectional arrows that don't fit
+      assert.ok(svg.includes('arrow-e1-scaled'), 'Should have scaled end marker');
+      assert.ok(svg.includes('arrow-e1-scaled-start'), 'Should have scaled start marker');
+    });
+
+    it('should use normal size arrows when distance is sufficient', () => {
+      // Nodes with 20px gap (more than ARROW_WIDTH=7)
+      const svg = generateSvg({
+        nodes: [
+          { id: 'a', type: 'text', text: 'A', x: 0, y: 0, width: 100, height: 60 },
+          { id: 'b', type: 'text', text: 'B', x: 0, y: 80, width: 100, height: 60 }
+        ],
+        edges: [
+          { id: 'e1', fromNode: 'a', fromSide: 'bottom', toNode: 'b', toSide: 'top' }
+        ]
+      });
+      
+      // Distance is 20px which is > 15px threshold, should use bezier curve with normal markers
+      // The normal markers are defined in defs section
+      assert.ok(svg.includes('id="arrow-e1"'), 'Should have normal marker defined in defs');
+      assert.ok(!svg.includes('arrow-e1-scaled'), 'Should not have scaled marker for sufficient distance');
     });
   });
 });
