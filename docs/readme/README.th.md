@@ -1,7 +1,5 @@
 # Markdown Viewer
 
-[English](README.en.md) · [简体中文](README.zh-CN.md) · [繁體中文](README.zh-TW.md) · [Русский](README.ru.md) · [日本語](README.ja.md) · [हिन्दी](README.hi.md) · [한국어](README.ko.md) · [Deutsch](README.de.md) · [Português (Brasil)](README.pt-BR.md) · [Português (Portugal)](README.pt-PT.md) · [Nederlands](README.nl.md) · [Українська](README.uk.md) · [Tiếng Việt](README.vi.md) · [Беларуская](README.be.md) · [Français](README.fr.md) · [Italiano](README.it.md) · [Bahasa Indonesia](README.id.md) · [Español](README.es.md) · [ไทย](README.th.md) · [Svenska](README.sv.md) · [Türkçe](README.tr.md) · [Eesti](README.et.md) · [Bahasa Melayu](README.ms.md) · [Polski](README.pl.md) · [Suomi](README.fi.md) · [Lietuvių](README.lt.md) · [Norsk](README.no.md) · [Dansk](README.da.md)
-
 **Markdown สู่ Word สมบูรณ์แบบในคลิกเดียว — Mermaid, Graphviz, Vega, อินโฟกราฟิก, LaTeX (แก้ไขได้), ไฮไลท์โค้ด, ประมวลผลในเครื่อง**
 
 *ฟรีโดยสมบูรณ์ · 29+ ธีมระดับมืออาชีพ · รองรับ 28 ภาษา*
