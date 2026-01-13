@@ -278,6 +278,7 @@ body {
 /* The actual scale value will be set dynamically via JavaScript */
 #markdown-content > div[style*="width"] {
   transform-origin: top left;
+  break-inside: avoid;
   page-break-inside: avoid;
 }
 
@@ -407,6 +408,32 @@ img {
   max-width: 100%;
   height: auto;
   box-sizing: content-box;
+}
+
+/* Diagrams (rendered images) */
+.md2x-diagram {
+  text-align: center;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+.md2x-diagram img,
+img.md2x-diagram {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-left: auto;
+  margin-right: auto;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+
+#markdown-content svg {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
+  break-inside: avoid;
+  page-break-inside: avoid;
 }
 
 /* Block-level images: marked by rehypeBlockImages plugin */
@@ -780,7 +807,7 @@ export class NodePdfExporter {
       try {
         const result = await browserRenderer.render(renderType, decodedCode, basePath, themeConfig);
         if (result && result.base64) {
-          const imgTag = `<img src="data:image/${result.format};base64,${result.base64}" alt="${lang} diagram" style="max-width: 100%;" />`;
+          const imgTag = `<div class="md2x-diagram"><img class="md2x-diagram" src="data:image/${result.format};base64,${result.base64}" alt="${lang} diagram" style="max-width: 100%;" /></div>`;
           html = html.replace(fullMatch, imgTag);
         }
       } catch (e) {

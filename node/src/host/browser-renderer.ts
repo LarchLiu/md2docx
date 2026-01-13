@@ -52,6 +52,43 @@ function resolveRendererHtmlPath(): string {
   return path.join(moduleDir, 'renderer', 'puppeteer-render.html');
 }
 
+function getPaperSizeInches(format: NonNullable<PdfOptions['format']>): { widthIn: number; heightIn: number } {
+  // https://pptr.dev/api/puppeteer.pdfoptions/#format
+  // Puppeteer uses standard paper sizes; keep a small mapping here.
+  switch (format) {
+    case 'Letter':
+      return { widthIn: 8.5, heightIn: 11 };
+    case 'Legal':
+      return { widthIn: 8.5, heightIn: 14 };
+    case 'A3':
+      return { widthIn: 11.69, heightIn: 16.54 };
+    case 'A5':
+      return { widthIn: 5.83, heightIn: 8.27 };
+    case 'A4':
+    default:
+      return { widthIn: 8.27, heightIn: 11.69 };
+  }
+}
+
+function parseCssLengthToInches(value: string): number | null {
+  const v = String(value ?? '').trim();
+  if (!v) return null;
+
+  const m = v.match(/^(-?\d+(?:\.\d+)?)(px|in|mm|cm)$/i);
+  if (!m) return null;
+
+  const n = parseFloat(m[1]);
+  if (!Number.isFinite(n)) return null;
+
+  const unit = m[2].toLowerCase();
+  if (unit === 'in') return n;
+  if (unit === 'cm') return n / 2.54;
+  if (unit === 'mm') return n / 25.4;
+  if (unit === 'px') return n / 96;
+
+  return null;
+}
+
 /**
  * Create a browser-based renderer using Puppeteer
  */
@@ -259,6 +296,47 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
           // No basePath, use setContent (relative paths won't work)
           await pdfPage.setContent(fullHtml, { waitUntil: 'networkidle0' });
         }
+
+        // If a diagram is taller than a single printable page, scale it down so it fits.
+        // This is best-effort: if the diagram is already constrained by width, it may still be too tall to fit nicely.
+        const format = options.format || 'A4';
+        const landscape = options.landscape || false;
+        const pdfScale = options.scale || 1;
+        const { widthIn, heightIn } = getPaperSizeInches(format);
+        const pageHeightIn = landscape ? widthIn : heightIn;
+
+        const marginTopIn = parseCssLengthToInches(options.margin?.top || '20mm') ?? parseCssLengthToInches('20mm')!;
+        const marginBottomIn = parseCssLengthToInches(options.margin?.bottom || '20mm') ?? parseCssLengthToInches('20mm')!;
+
+        // Chromium uses 96 CSS pixels per inch; compensate for Puppeteer's pdf `scale` option.
+        const printableHeightCssPx = ((pageHeightIn - marginTopIn - marginBottomIn) * 96) / pdfScale;
+
+        await pdfPage.evaluate((printableHeightPx: number) => {
+          const container = document.getElementById('markdown-content');
+          if (!container) return;
+
+          const cs = window.getComputedStyle(container);
+          const padTop = parseFloat(cs.paddingTop || '0') || 0;
+          const padBottom = parseFloat(cs.paddingBottom || '0') || 0;
+          const available = Math.max(0, printableHeightPx - padTop - padBottom);
+
+          const imgs = container.querySelectorAll('.md2x-diagram img.md2x-diagram, img.md2x-diagram');
+          imgs.forEach((img) => {
+            const el = img as HTMLImageElement;
+            // Prefer current rendered size; fallback to natural.
+            const rect = el.getBoundingClientRect();
+            const currentHeight = rect.height || el.naturalHeight || 0;
+            if (!currentHeight) return;
+
+            if (currentHeight <= available + 0.5) return;
+
+            el.style.maxHeight = `${available}px`;
+            el.style.height = 'auto';
+            el.style.width = 'auto';
+            el.style.maxWidth = '100%';
+            (el.style as any).objectFit = 'contain';
+          });
+        }, printableHeightCssPx);
 
         // Scale down wide fixed-width HTML blocks to fit page width.
         // Many HTML diagrams rely on explicit pixel widths + flex/grid; forcing width=100% can break layout.
