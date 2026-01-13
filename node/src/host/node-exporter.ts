@@ -648,6 +648,7 @@ export class NodePdfExporter {
     const remarkParse = (await import('remark-parse')).default;
     const remarkGfm = (await import('remark-gfm')).default;
     const remarkMath = (await import('remark-math')).default;
+    const remarkSuperSub = (await import('../../../src/plugins/remark-super-sub')).default;
     const remarkRehype = (await import('remark-rehype')).default;
     const rehypeKatex = (await import('rehype-katex')).default;
     const rehypeHighlight = (await import('rehype-highlight')).default;
@@ -708,8 +709,10 @@ export class NodePdfExporter {
     // Create processor
     const processor = unified()
       .use(remarkParse)
-      .use(remarkGfm)
+      // Keep consistent with extension/webview + DOCX: reserve single `~text~` for subscript.
+      .use(remarkGfm, { singleTilde: false })
       .use(remarkMath)
+      .use(remarkSuperSub)
       .use(remarkRehype, { allowDangerousHtml: true })
       .use(rehypeKatex)
       .use(rehypeHighlight)
