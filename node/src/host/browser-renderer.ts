@@ -260,24 +260,29 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
           await pdfPage.setContent(fullHtml, { waitUntil: 'networkidle0' });
         }
 
-        // Scale down wide content to fit page width
-        // Override fixed width with 100% to fill the page
+        // Scale down wide fixed-width HTML blocks to fit page width.
+        // Many HTML diagrams rely on explicit pixel widths + flex/grid; forcing width=100% can break layout.
         await pdfPage.evaluate(() => {
           const container = document.getElementById('markdown-content');
           if (!container) return;
 
-          // Find all direct child divs with inline width style
+          const availableWidth = container.clientWidth;
+          if (!availableWidth) return;
+
           const wideDivs = container.querySelectorAll(':scope > div[style*="width"]');
           wideDivs.forEach((div) => {
             const el = div as HTMLElement;
-            // Check if element has a fixed pixel width
-            const widthMatch = el.style.width?.match(/^(\d+)px$/);
-            if (widthMatch) {
-              // Replace fixed width with 100% to fill container
-              el.style.width = '100%';
-              el.style.maxWidth = '100%';
-              el.style.boxSizing = 'border-box';
-            }
+            const widthMatch = el.style.width?.match(/^(\d+(?:\.\d+)?)px$/);
+            if (!widthMatch) return;
+
+            const fixedWidth = parseFloat(widthMatch[1]);
+            if (!Number.isFinite(fixedWidth) || fixedWidth <= 0) return;
+
+            const scale = Math.min(1, availableWidth / fixedWidth);
+            if (scale >= 0.999) return;
+
+            el.style.transformOrigin = 'top left';
+            el.style.transform = `scale(${scale})`;
           });
         });
 
