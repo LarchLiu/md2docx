@@ -26,14 +26,21 @@
     "postinstall": "puppeteer browsers install chrome",
     "prepublishOnly": "node build.mjs"
   },
+  "keywords": [
+    "markdown",
+    "converter",
+    "docx",
+    "pdf"
+  ],
+  "author": "Arch Liu <larch.liu@gmail.com>",
   "license": "ISC",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/xicilion/markdown-viewer-extension.git"
+    "url": "git+https://github.com/LarchLiu/md2x.git"
   },
-  "homepage": "https://github.com/xicilion/markdown-viewer-extension",
+  "homepage": "https://github.com/LarchLiu/md2x",
   "bugs": {
-    "url": "https://github.com/xicilion/markdown-viewer-extension/issues"
+    "url": "https://github.com/LarchLiu/md2x/issues"
   },
   "publishConfig": {
     "access": "public"
