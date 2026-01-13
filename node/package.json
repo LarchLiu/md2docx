@@ -1,11 +1,11 @@
 {
-  "name": "@cloudgeek/md2docx",
+  "name": "md2x",
   "version": "0.0.1",
-  "description": "Markdown → DOCX converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
+  "description": "Markdown → PDF/DOCX converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
   "type": "module",
   "private": false,
   "bin": {
-    "md2docx": "dist/md2docx.mjs"
+    "md2x": "dist/md2x.mjs"
   },
   "files": [
     "dist",
@@ -21,7 +21,7 @@
   "scripts": {
     "build": "node build.mjs",
     "dev": "node build.mjs --watch --run",
-    "cli": "node dist/md2docx.mjs",
+    "cli": "node dist/md2x.mjs",
     "test": "node test/node.test.mjs",
     "postinstall": "puppeteer browsers install chrome",
     "prepublishOnly": "node build.mjs"

@@ -23,6 +23,10 @@ export type CreateNodePlatformOptions = {
   moduleDir: string;
   selectedThemeId: string;
   output: NodePlatformOutput;
+  /** Settings to pass to exporters via storage */
+  settings?: {
+    docxHrAsPageBreak?: boolean;
+  };
 };
 
 export type CreatedNodePlatform = {
@@ -113,11 +117,16 @@ export function createNodePlatform(options: CreateNodePlatformOptions): CreatedN
   const storage = new Map<string, unknown>();
   storage.set('selectedTheme', options.selectedThemeId);
 
+  // Store settings for exporters to read via storage.get(['markdownViewerSettings'])
+  if (options.settings) {
+    storage.set('markdownViewerSettings', options.settings);
+  }
+
   let captured: Buffer | null = null;
 
   const documentService = new NodeDocumentService();
   // Default document path; caller should override via DocxExporter.setBaseUrl()
-  documentService.setDocumentPath(path.join(process.cwd(), '__md2docx__.md'));
+  documentService.setDocumentPath(path.join(process.cwd(), '__md2x__.md'));
 
   const platform: PlatformAPI = {
     platform: 'node',

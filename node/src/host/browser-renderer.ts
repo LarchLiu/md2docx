@@ -23,14 +23,31 @@ export interface RenderResult {
   format: string;
 }
 
+export interface PdfOptions {
+  format?: 'A4' | 'Letter' | 'Legal' | 'A3' | 'A5';
+  landscape?: boolean;
+  margin?: {
+    top?: string;
+    bottom?: string;
+    left?: string;
+    right?: string;
+  };
+  printBackground?: boolean;
+  scale?: number;
+  displayHeaderFooter?: boolean;
+  headerTemplate?: string;
+  footerTemplate?: string;
+}
+
 export interface BrowserRenderer {
   initialize(): Promise<void>;
   render(type: string, content: string | object, basePath?: string, themeConfig?: RendererThemeConfig | null): Promise<RenderResult | null>;
+  exportToPdf(html: string, css: string, options?: PdfOptions, basePath?: string): Promise<Buffer>;
   close(): Promise<void>;
 }
 
 function resolveRendererHtmlPath(): string {
-  // When bundled, import.meta.url points to node/dist/md2docx.mjs
+  // When bundled, import.meta.url points to node/dist/md2x.mjs
   const moduleDir = path.dirname(fileURLToPath(import.meta.url));
   return path.join(moduleDir, 'renderer', 'puppeteer-render.html');
 }
@@ -44,7 +61,7 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
     puppeteer = await import('puppeteer');
   } catch {
     console.warn('Puppeteer dependency not found. Diagrams/HTML/SVG will be skipped.');
-    console.warn('If you are using the published CLI, run via `npx @cloudgeek/md2docx ...` (it installs Puppeteer automatically).');
+    console.warn('If you are using the published CLI, run via `npx md2x ...` (it installs Puppeteer automatically).');
     console.warn('If you are running from this repo, install CLI deps first: `npm -C node i` (or `pnpm -C node i`).');
     return null;
   }
@@ -67,9 +84,9 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
   const createRuntimeDir = (): string => {
     const prefixes = [
       // Prefer workspace dir (works in sandboxed environments).
-      path.join(process.cwd(), '.md2docx-'),
+      path.join(process.cwd(), '.md2x-'),
       // Fallback to OS tmp for normal local runs.
-      path.join(os.tmpdir(), 'md2docx-'),
+      path.join(os.tmpdir(), 'md2x-'),
     ];
 
     for (const prefix of prefixes) {
@@ -92,8 +109,8 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
     const href = pathToFileURL(basePath + path.sep).href;
     await page.evaluate((h: string) => {
       const win = window as any;
-      if (typeof win.__md2docxSetBaseHref === 'function') {
-        win.__md2docxSetBaseHref(h);
+      if (typeof win.__md2xSetBaseHref === 'function') {
+        win.__md2xSetBaseHref(h);
         return;
       }
       let base = document.querySelector('base');
@@ -165,7 +182,7 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
       await page.goto(pathToFileURL(rendererHtmlPath).href, { waitUntil: 'domcontentloaded' });
 
       try {
-        await page.waitForFunction(() => (window as any).__md2docxRenderReady === true, { timeout: 30_000 });
+        await page.waitForFunction(() => (window as any).__md2xRenderReady === true, { timeout: 30_000 });
       } catch (error) {
         const hint =
           'Renderer page did not become ready within 30s.\n' +
@@ -188,7 +205,7 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
         const result = await page.evaluate(
           async (renderType: string, renderInput: string | object, cfg: RendererThemeConfig | null) => {
             const win = window as any;
-            const renderFn = win.__md2docxRender;
+            const renderFn = win.__md2xRender;
             if (typeof renderFn !== 'function') {
               throw new Error('Renderer function not available on page');
             }
@@ -204,6 +221,73 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
         const message = error instanceof Error ? error.message : String(error);
         console.warn(`Failed to render ${type}: ${message}`);
         return null;
+      }
+    },
+
+    async exportToPdf(html: string, css: string, options: PdfOptions = {}, basePath?: string): Promise<Buffer> {
+      if (!page) {
+        throw new Error('Browser not initialized');
+      }
+
+      // Create a new page for PDF export to avoid interfering with the render page
+      const pdfPage = await browser!.newPage();
+
+      // Create a temporary HTML file so that local file:// resources can be loaded
+      // (setContent doesn't allow file:// access due to security restrictions)
+      let tempHtmlPath: string | null = null;
+
+      try {
+        // Build full HTML document with embedded CSS
+        // Use id="markdown-content" to match theme CSS selectors from themeToCSS
+        const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>${css}</style>
+</head>
+<body>
+  <div id="markdown-content">${html}</div>
+</body>
+</html>`;
+
+        if (basePath) {
+          // Write HTML to a temp file in the basePath directory so relative paths resolve correctly
+          tempHtmlPath = path.join(basePath, `__md2x_temp_${Date.now()}.html`);
+          fs.writeFileSync(tempHtmlPath, fullHtml, 'utf-8');
+          await pdfPage.goto(pathToFileURL(tempHtmlPath).href, { waitUntil: 'networkidle0' });
+        } else {
+          // No basePath, use setContent (relative paths won't work)
+          await pdfPage.setContent(fullHtml, { waitUntil: 'networkidle0' });
+        }
+
+        // Generate PDF with options
+        const pdfBuffer = await pdfPage.pdf({
+          format: options.format || 'A4',
+          landscape: options.landscape || false,
+          printBackground: options.printBackground !== false,
+          scale: options.scale || 1,
+          displayHeaderFooter: options.displayHeaderFooter || false,
+          headerTemplate: options.headerTemplate || '',
+          footerTemplate: options.footerTemplate || '',
+          margin: {
+            top: options.margin?.top || '20mm',
+            bottom: options.margin?.bottom || '20mm',
+            left: options.margin?.left || '15mm',
+            right: options.margin?.right || '15mm',
+          },
+        });
+
+        return Buffer.from(pdfBuffer);
+      } finally {
+        await pdfPage.close();
+        // Clean up temporary HTML file
+        if (tempHtmlPath) {
+          try {
+            fs.unlinkSync(tempHtmlPath);
+          } catch {
+            // Ignore cleanup errors
+          }
+        }
       }
     },
 

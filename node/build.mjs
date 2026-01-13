@@ -80,13 +80,13 @@ async function build() {
       platform: 'node',
       target: 'node18',
       format: 'esm',
-      outfile: path.join(outDir, 'md2docx.mjs'),
+      outfile: path.join(outDir, 'md2x.mjs'),
       banner: {
         js: '#!/usr/bin/env node',
       },
       plugins: [
         {
-          name: 'md2docx-node-runner',
+          name: 'md2x-node-runner',
           setup(build) {
             build.onEnd((result) => onCliEnd(result));
           },
@@ -132,7 +132,7 @@ async function build() {
       outfile: path.join(outDir, 'index.mjs'),
       plugins: [
         {
-          name: 'md2docx-node-api',
+          name: 'md2x-node-api',
           setup(build) {
             build.onEnd((result) => onApiEnd(result));
           },
@@ -186,7 +186,7 @@ async function build() {
       sourcemap: false,
       plugins: [
         {
-          name: 'md2docx-renderer-assets',
+          name: 'md2x-renderer-assets',
           setup(build) {
             build.onEnd((result) => onRendererEnd(result));
           },
@@ -255,7 +255,7 @@ async function build() {
     }
 
     // Make the output file executable (banner provides shebang).
-    const outFile = path.join(outDir, 'md2docx.mjs');
+    const outFile = path.join(outDir, 'md2x.mjs');
     fs.chmodSync(outFile, 0o755);
 
     console.log('\nBuild complete!');
@@ -299,7 +299,7 @@ async function build() {
         spawnCli();
       } else {
         console.log('\nWatching for changes...');
-    console.log('Tip: run `node node/dist/md2docx.mjs --help` in another terminal.');
+    console.log('Tip: run `node node/dist/md2x.mjs --help` in another terminal.');
       }
 
       onCliEnd = (result) => {

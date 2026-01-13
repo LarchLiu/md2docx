@@ -3,7 +3,7 @@
  *
  * Runs inside a Puppeteer-controlled Chromium page.
  * Reuses the same render-worker-core + renderers used by VSCode/mobile iframe worker,
- * but exposes a simple global function for the Node-side Node to call via page.evaluate().
+ * but exposes a simple global function for the Node-side to call via page.evaluate().
  */
 
 import { handleRender, initRenderEnvironment } from '../../../src/renderers/render-worker-core';
@@ -12,9 +12,9 @@ import type { RendererThemeConfig, RenderResult } from '../../../src/types/index
 
 declare global {
   interface Window {
-    __md2docxRenderReady?: boolean;
-    __md2docxSetBaseHref?: (href: string) => void;
-    __md2docxRender?: (
+    __md2xRenderReady?: boolean;
+    __md2xSetBaseHref?: (href: string) => void;
+    __md2xRender?: (
       renderType: string,
       input: string | object,
       themeConfig?: RendererThemeConfig | null
@@ -40,12 +40,12 @@ function init(): void {
   const canvas = document.getElementById('png-canvas') as HTMLCanvasElement | null;
   initRenderEnvironment({ canvas: canvas ?? undefined });
 
-  window.__md2docxSetBaseHref = (href: string) => {
+  window.__md2xSetBaseHref = (href: string) => {
     const base = ensureBaseTag();
     base.href = href;
   };
 
-  window.__md2docxRender = async (
+  window.__md2xRender = async (
     renderType: string,
     input: string | object,
     themeConfig: RendererThemeConfig | null = null
@@ -53,7 +53,7 @@ function init(): void {
     return await handleRender({ renderType, input, themeConfig });
   };
 
-  window.__md2docxRenderReady = true;
+  window.__md2xRenderReady = true;
 }
 
 if (document.readyState === 'loading') {
