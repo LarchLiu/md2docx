@@ -1,7 +1,7 @@
 {
   "name": "md2x",
-  "version": "0.3.0",
-  "description": "Markdown → PDF/DOCX converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
+  "version": "0.4.0",
+  "description": "Markdown converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
   "type": "module",
   "private": false,
   "bin": {
@@ -38,7 +38,7 @@
     "type": "git",
     "url": "git+https://github.com/LarchLiu/md2x.git"
   },
-  "homepage": "https://github.com/LarchLiu/md2x",
+  "homepage": "https://github.com/LarchLiu/md2x#readme",
   "bugs": {
     "url": "https://github.com/LarchLiu/md2x/issues"
   },
