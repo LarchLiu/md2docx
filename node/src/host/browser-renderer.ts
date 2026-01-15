@@ -27,16 +27,43 @@ export interface PdfOptions {
   format?: 'A4' | 'Letter' | 'Legal' | 'A3' | 'A5';
   landscape?: boolean;
   margin?: {
-    top?: string;
-    bottom?: string;
-    left?: string;
-    right?: string;
+    top?: string | number;
+    bottom?: string | number;
+    left?: string | number;
+    right?: string | number;
   };
   printBackground?: boolean;
   scale?: number;
   displayHeaderFooter?: boolean;
+  /**
+   * HTML template for the print header. Supports special classes:
+   * - `<span class="date"></span>` - Current date
+   * - `<span class="title"></span>` - Document title
+   * - `<span class="url"></span>` - Document URL
+   * - `<span class="pageNumber"></span>` - Current page number
+   * - `<span class="totalPages"></span>` - Total pages
+   *
+   * Note: Must set font-size explicitly (e.g., `font-size: 10px`), otherwise text may be invisible.
+   */
   headerTemplate?: string;
+  /**
+   * HTML template for the print footer. Supports the same special classes as headerTemplate.
+   *
+   * @example
+   * ```yaml
+   * pdf:
+   *   displayHeaderFooter: true
+   *   headerTemplate: '<div style="font-size:10px;width:100%;text-align:center;"><span class="title"></span></div>'
+   *   footerTemplate: '<div style="font-size:10px;width:100%;text-align:center;">Page <span class="pageNumber"></span> of <span class="totalPages"></span></div>'
+   * ```
+   */
   footerTemplate?: string;
+  /** Custom page width (e.g., '800px'). Overrides format when specified with height. */
+  width?: string;
+  /** Custom page height (e.g., '600px'). Overrides format when specified with width. */
+  height?: string;
+  /** Document title for header template's `<span class="title"></span>` */
+  title?: string;
 }
 
 export interface BrowserRenderer {
@@ -70,7 +97,31 @@ function getPaperSizeInches(format: NonNullable<PdfOptions['format']>): { widthI
   }
 }
 
-function parseCssLengthToInches(value: string): number | null {
+/** Get default margins for a paper format */
+function getDefaultMargins(format: NonNullable<PdfOptions['format']>): { top: string; bottom: string; left: string; right: string } {
+  switch (format) {
+    case 'A3':
+      // Larger paper, use larger margins
+      return { top: '25mm', bottom: '25mm', left: '20mm', right: '20mm' };
+    case 'A5':
+      // Smaller paper, use smaller margins
+      return { top: '15mm', bottom: '15mm', left: '12mm', right: '12mm' };
+    case 'Legal':
+      // Taller paper, slightly larger vertical margins
+      return { top: '25mm', bottom: '25mm', left: '20mm', right: '20mm' };
+    case 'Letter':
+    case 'A4':
+    default:
+      return { top: '20mm', bottom: '20mm', left: '15mm', right: '15mm' };
+  }
+}
+
+function parseCssLengthToInches(value: string | number): number | null {
+  // Handle numeric values (assumed to be pixels)
+  if (typeof value === 'number') {
+    return value / 96;
+  }
+
   const v = String(value ?? '').trim();
   if (!v) return null;
 
@@ -276,10 +327,13 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
       try {
         // Build full HTML document with embedded CSS
         // Use id="markdown-content" to match theme CSS selectors from themeToCSS
+        // Include <title> for headerTemplate's <span class="title"></span>
+        const title = options.title || 'Document';
         const fullHtml = `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
+  <title>${title}</title>
   <style>${css}</style>
 </head>
 <body>
@@ -304,9 +358,10 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
         const pdfScale = options.scale || 1;
         const { widthIn, heightIn } = getPaperSizeInches(format);
         const pageHeightIn = landscape ? widthIn : heightIn;
+        const defaultMargins = getDefaultMargins(format);
 
-        const marginTopIn = parseCssLengthToInches(options.margin?.top || '20mm') ?? parseCssLengthToInches('20mm')!;
-        const marginBottomIn = parseCssLengthToInches(options.margin?.bottom || '20mm') ?? parseCssLengthToInches('20mm')!;
+        const marginTopIn = parseCssLengthToInches(options.margin?.top ?? defaultMargins.top) ?? parseCssLengthToInches(defaultMargins.top)!;
+        const marginBottomIn = parseCssLengthToInches(options.margin?.bottom ?? defaultMargins.bottom) ?? parseCssLengthToInches(defaultMargins.bottom)!;
 
         // Chromium uses 96 CSS pixels per inch; compensate for Puppeteer's pdf `scale` option.
         const printableHeightCssPx = ((pageHeightIn - marginTopIn - marginBottomIn) * 96) / pdfScale;
@@ -365,21 +420,31 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
         });
 
         // Generate PDF with options
-        const pdfBuffer = await pdfPage.pdf({
-          format: options.format || 'A4',
-          landscape: options.landscape || false,
+        // Build pdf options, supporting custom width/height
+        const pdfOpts: Parameters<typeof pdfPage.pdf>[0] = {
           printBackground: options.printBackground !== false,
           scale: options.scale || 1,
           displayHeaderFooter: options.displayHeaderFooter || false,
           headerTemplate: options.headerTemplate || '',
           footerTemplate: options.footerTemplate || '',
           margin: {
-            top: options.margin?.top || '20mm',
-            bottom: options.margin?.bottom || '20mm',
-            left: options.margin?.left || '15mm',
-            right: options.margin?.right || '15mm',
+            top: options.margin?.top ?? defaultMargins.top,
+            bottom: options.margin?.bottom ?? defaultMargins.bottom,
+            left: options.margin?.left ?? defaultMargins.left,
+            right: options.margin?.right ?? defaultMargins.right,
           },
-        });
+        };
+
+        // Use custom width/height if provided, otherwise use format
+        if (options.width && options.height) {
+          pdfOpts.width = options.width;
+          pdfOpts.height = options.height;
+        } else {
+          pdfOpts.format = options.format || 'A4';
+          pdfOpts.landscape = options.landscape || false;
+        }
+
+        const pdfBuffer = await pdfPage.pdf(pdfOpts);
 
         return Buffer.from(pdfBuffer);
       } finally {

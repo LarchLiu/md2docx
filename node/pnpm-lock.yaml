@@ -8,9 +8,16 @@ importers:
 
   .:
     dependencies:
+      js-yaml:
+        specifier: ^4.1.1
+        version: 4.1.1
       puppeteer:
-        specifier: ^24.34.0
+        specifier: 24.35.0
         version: 24.35.0
+    devDependencies:
+      '@types/js-yaml':
+        specifier: ^4.0.9
+        version: 4.0.9
 
 packages:
 
@@ -29,6 +36,9 @@ packages:
 
   '@tootallnate/quickjs-emscripten@0.23.0':
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}
+
+  '@types/js-yaml@4.0.9':
+    resolution: {integrity: sha512-k4MGaQl5TGo/iipqb2UDG2UwjXziSWkh0uysQelTlJpX1qGlpUZYm8PnO4DxG1qBomtJUdYJ6qR6xdIah10JLg==}
 
   '@types/node@25.0.6':
     resolution: {integrity: sha512-NNu0sjyNxpoiW3YuVFfNz7mxSQ+S4X2G28uqg2s+CzoqoQjLPsWSbsFFyztIAqt2vb8kfEAsJNepMGPTxFDx3Q==}
@@ -440,6 +450,8 @@ snapshots:
       - supports-color
 
   '@tootallnate/quickjs-emscripten@0.23.0': {}
+
+  '@types/js-yaml@4.0.9': {}
 
   '@types/node@25.0.6':
     dependencies:

@@ -102,7 +102,7 @@ async function build() {
 
     console.log('Building CLI...');
     const cliCtx = await esbuild.context({
-      entryPoints: [path.join(__dirname, 'src/host/index.ts')],
+      entryPoints: [path.join(__dirname, 'src/host/cli.ts')],
       bundle: true,
       platform: 'node',
       target: 'node18',

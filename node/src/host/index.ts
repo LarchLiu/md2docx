@@ -1,368 +1,293 @@
 /**
- * Markdown to PDF/DOCX Node Tool
- * Convert markdown files to PDF/DOCX/HTML
- *
- * Usage:
- *   npx md2x input.md [output.pdf] [--theme <theme>]
- *   npx md2x input.md -o output.pdf --theme academic
- *   npx md2x input.md -f docx -o output.docx
+ * Markdown to PDF/DOCX/HTML Library API
+ * Convert markdown content to various formats
  */
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
+import yaml from 'js-yaml'
+import { NodeDocxExporter, NodeHtmlExporter, NodePdfExporter } from './node-exporter';
+import type { Md2DocxOptions, Md2PdfOptions, Md2HtmlOptions } from './node-exporter';
 
-type OutputFormat = 'docx' | 'pdf' | 'html';
+// ============================================================================
+// Shared types and utilities
+// ============================================================================
 
-interface NodeOptions {
-  input: string;
-  output: string;
-  theme: string;
-  format: OutputFormat;
-  help: boolean;
-  version: boolean;
-  listThemes: boolean;
-  diagramMode: 'img' | 'live' | 'none';
-  /**
-   * null means "use format default":
-   * - pdf/docx: true
-   * - html: false
-   */
-  hrPageBreak: boolean | null;
+export type OutputFormat = 'docx' | 'pdf' | 'html';
+
+export type DiagramMode = 'img' | 'live' | 'none';
+
+export type FrontMatterData = Record<string, unknown>;
+
+export interface FrontMatterOptions {
+  // Common options
+  theme?: string;
+  format?: OutputFormat;
+  hrAsPageBreak?: boolean;
+  // HTML-specific options
+  title?: string;
+  standalone?: boolean;
+  diagramMode?: DiagramMode;
+  baseTag?: boolean;
+  cdn?: Md2HtmlOptions['cdn'];
+  // PDF-specific options
+  pdf?: Md2PdfOptions['pdf'];
 }
 
-function resolveThemePresetsDir(): string | null {
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+export function parseFrontMatter(markdown: string): { content: string; data: FrontMatterData; hasFrontMatter: boolean } {
+  const md = String(markdown);
+  const fmMatch = md.match(/^---\s*[\r\n]([\s\S]*?)[\r\n](?:---|\.\.\.)\s*(?:[\r\n]([\s\S]*))?$/);
+  if (!fmMatch) {
+    return { content: markdown, data: {}, hasFrontMatter: false };
+  }
 
-  const candidates = [
-    // Bundled output: node/dist/themes/presets
-    path.join(moduleDir, 'themes', 'presets'),
-    // Dev (running TS): repo/src/themes/presets
-    path.resolve(moduleDir, '../../src/themes/presets'),
-    // Fallback: cwd/src/themes/presets
-    path.resolve(process.cwd(), 'src/themes/presets'),
-  ];
+  try {
+    const data = yaml.load(fmMatch[1]) as FrontMatterData;
+    const content = fmMatch[2] || '';
 
-  for (const dir of candidates) {
-    try {
-      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) {
-        return dir;
-      }
-    } catch {
-      // try next
+    const hasFrontMatter = Object.keys(data).length > 0;
+    return { content, data: data as FrontMatterData, hasFrontMatter };
+  } catch {
+    return { content: markdown, data: {}, hasFrontMatter: false };
+  }
+}
+
+export function frontMatterToOptions(data: FrontMatterData): FrontMatterOptions {
+  const out: FrontMatterOptions = {};
+
+  // Common options
+  if (typeof data.theme === 'string') out.theme = data.theme;
+  if (typeof data.hrAsPageBreak === 'boolean') out.hrAsPageBreak = data.hrAsPageBreak;
+
+  if (typeof data.format === 'string') {
+    const fmt = data.format.toLowerCase();
+    if (fmt === 'pdf' || fmt === 'docx' || fmt === 'html') {
+      out.format = fmt;
     }
   }
 
+  // HTML-specific options
+  if (typeof data.title === 'string') out.title = data.title;
+  if (typeof data.standalone === 'boolean') out.standalone = data.standalone;
+  if (typeof data.baseTag === 'boolean') out.baseTag = data.baseTag;
+
+  if (typeof data.diagramMode === 'string') {
+    const dm = data.diagramMode.toLowerCase();
+    if (dm === 'img' || dm === 'live' || dm === 'none') {
+      out.diagramMode = dm;
+    }
+  }
+
+  // CDN overrides (HTML live mode)
+  if (data.cdn && typeof data.cdn === 'object') {
+    out.cdn = data.cdn as Md2HtmlOptions['cdn'];
+  }
+
+  // PDF-specific options
+  if (data.pdf && typeof data.pdf === 'object') {
+    out.pdf = data.pdf as Md2PdfOptions['pdf'];
+  }
+
+  return out;
+}
+
+// ============================================================================
+// Library API functions
+// ============================================================================
+
+/** Alias for FrontMatterOptions, used as conversion options */
+export type ConvertOptions = FrontMatterOptions & {
+  basePath?: string;
+  /** Skip front matter parsing (use when markdown is already stripped of front matter) */
+  skipFrontMatter?: boolean;
+};
+
+export interface ConvertResult {
+  /** Output buffer */
+  buffer: Buffer;
+  /** Resolved output path */
+  outputPath: string;
+  /** Output format used */
+  format: OutputFormat;
+}
+
+export async function markdownToDocxBuffer(markdown: string, options: Md2DocxOptions = {}): Promise<Buffer> {
+  const exporter = new NodeDocxExporter();
+  return exporter.exportToBuffer(markdown, options);
+}
+
+export async function markdownToPdfBuffer(markdown: string, options: Md2PdfOptions = {}): Promise<Buffer> {
+  const exporter = new NodePdfExporter();
+  return exporter.exportToBuffer(markdown, options);
+}
+
+export async function markdownToHtmlString(markdown: string, options: Md2HtmlOptions = {}): Promise<string> {
+  const exporter = new NodeHtmlExporter();
+  return exporter.exportToString(markdown, options);
+}
+
+export async function markdownToHtmlBuffer(markdown: string, options: Md2HtmlOptions = {}): Promise<Buffer> {
+  const exporter = new NodeHtmlExporter();
+  return exporter.exportToBuffer(markdown, options);
+}
+
+function inferFormatFromPath(outputPath: string): OutputFormat | null {
+  const ext = path.extname(outputPath).toLowerCase();
+  if (ext === '.pdf') return 'pdf';
+  if (ext === '.docx') return 'docx';
+  if (ext === '.html' || ext === '.htm') return 'html';
   return null;
 }
 
-function getAvailableThemes(): string[] {
-  const presetsDir = resolveThemePresetsDir();
-  if (!presetsDir) {
-    return ['default'];
+/**
+ * Convert markdown content to buffer with front matter support.
+ *
+ * @param markdown - Markdown content (may include front matter)
+ * @param options - Conversion options (override front matter)
+ * @returns Buffer containing the converted content
+ *
+ * @example
+ * ```ts
+ * const md = `---
+ * theme: academic
+ * format: pdf
+ * ---
+ * # Hello World
+ * `;
+ * const { buffer, format } = await convert(md);
+ * ```
+ */
+export async function convert(
+  markdown: string,
+  options: ConvertOptions = {}
+): Promise<{ buffer: Buffer; format: OutputFormat }> {
+  // Skip front matter parsing if already processed by caller
+  const fm = options.skipFrontMatter
+    ? { content: markdown, data: {}, hasFrontMatter: false }
+    : parseFrontMatter(markdown);
+  const fmOptions = fm.hasFrontMatter ? frontMatterToOptions(fm.data) : {};
+
+  const format = options.format ?? fmOptions.format ?? 'pdf';
+  const theme = options.theme ?? fmOptions.theme ?? 'default';
+  const diagramMode = options.diagramMode ?? fmOptions.diagramMode ?? 'live';
+  const hrAsPageBreak = options.hrAsPageBreak ?? fmOptions.hrAsPageBreak ?? (format === 'html' ? false : true);
+  const basePath = options.basePath ?? process.cwd();
+  const markdownContent = fm.content;
+
+  let buffer: Buffer;
+
+  if (format === 'pdf') {
+    buffer = await markdownToPdfBuffer(markdownContent, {
+      theme,
+      basePath,
+      hrAsPageBreak,
+      pdf: {
+        ...options.pdf,
+        ...fmOptions.pdf,
+        title: options.title ?? fmOptions.title ?? 'Document',
+      },
+    });
+  } else if (format === 'docx') {
+    buffer = await markdownToDocxBuffer(markdownContent, {
+      theme,
+      basePath,
+      hrAsPageBreak,
+    });
+  } else {
+    buffer = await markdownToHtmlBuffer(markdownContent, {
+      theme,
+      basePath,
+      diagramMode,
+      hrAsPageBreak,
+      title: options.title ?? fmOptions.title ?? 'Document',
+      standalone: options.standalone ?? fmOptions.standalone,
+      baseTag: options.baseTag ?? fmOptions.baseTag,
+      cdn: options.cdn ?? fmOptions.cdn,
+    });
   }
 
-  try {
-    const ids = fs
-      .readdirSync(presetsDir, { withFileTypes: true })
-      .filter((d) => d.isFile() && d.name.endsWith('.json'))
-      .map((d) => d.name.replace(/\.json$/i, ''))
-      .filter((id) => id.length > 0)
-      .sort();
+  return { buffer, format };
+}
 
-    const unique = Array.from(new Set(ids));
-    const withoutDefault = unique.filter((id) => id !== 'default');
-    return ['default', ...withoutDefault];
-  } catch {
-    return ['default'];
+/**
+ * Convert a markdown file to PDF/DOCX/HTML with front matter support.
+ *
+ * This function:
+ * 1. Reads the input markdown file
+ * 2. Calls convert() to process the content
+ * 3. Writes the output file
+ *
+ * @param inputPath - Path to the input markdown file
+ * @param outputPath - Path to the output file (optional, defaults to input path with appropriate extension)
+ * @param options - Conversion options (override front matter)
+ * @returns ConvertResult with buffer, outputPath, and format
+ *
+ * @example
+ * ```ts
+ * // Basic usage
+ * await convertFile('doc.md', 'doc.pdf');
+ *
+ * // With options
+ * await convertFile('doc.md', 'doc.pdf', { theme: 'academic' });
+ *
+ * // Auto-detect format from output path
+ * await convertFile('doc.md', 'doc.docx');
+ *
+ * // Use front matter format
+ * await convertFile('doc.md'); // format from front matter or defaults to pdf
+ * ```
+ */
+export async function convertFile(
+  inputPath: string,
+  outputPath?: string,
+  options: ConvertOptions = {}
+): Promise<ConvertResult> {
+  const resolvedInputPath = path.resolve(inputPath);
+
+  if (!fs.existsSync(resolvedInputPath)) {
+    throw new Error(`Input file not found: ${resolvedInputPath}`);
   }
-}
 
-function formatThemeList(themes: string[]): string {
-  // Keep help output readable while still showing the complete list.
-  return themes.join(', ');
-}
+  const markdown = fs.readFileSync(resolvedInputPath, 'utf-8');
 
-function printHelp(): void {
-  const themes = getAvailableThemes();
-  console.log(`
-md2x - Convert Markdown to PDF, DOCX, or HTML
-
-Usage:
-  npx md2x <input.md> [output] [options]
-  md2x <input.md> [output] [options]
-
-Arguments:
-  input.md          Input markdown file (required)
-  output            Output file (optional, defaults to input name with .pdf/.docx/.html extension)
-
-Options:
-  -o, --output      Output file path
-  -f, --format      Output format: pdf, docx, or html (default: "pdf")
-  -t, --theme       Theme name (default: "default")
-  -h, --help        Show this help message
-  -v, --version     Show version number
-  --diagram-mode    HTML only: img | live | none (default: live)
-  --hr-page-break   Convert horizontal rules (---, ***, ___) to page breaks (default: true for PDF/DOCX; false for HTML)
-  --no-hr-page-break  Keep horizontal rules as visual lines (PDF/DOCX), or force visible HR in HTML
-  --list-themes     List all available themes
-
-Examples:
-  npx md2x README.md
-  npx md2x README.md output.pdf
-  npx md2x README.md -o output.pdf --theme academic
-  npx md2x README.md -f docx --no-hr-page-break
-  npx md2x README.md -f docx -o output.docx --theme minimal
-  npx md2x README.md -f html -o output.html
-  npx md2x --list-themes
-
-Available Themes:
-  ${formatThemeList(themes)}
-`);
-}
-
-function printVersion(): void {
-  // ESM-safe __dirname equivalent
-  const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-  // When bundled, import.meta.url points to `node/dist/md2x.mjs`.
-  // Prefer the Node package version (`node/package.json`), fall back to repo root `package.json`.
-  const candidates = [path.join(moduleDir, '../package.json'), path.join(moduleDir, '../../package.json')];
-  for (const packagePath of candidates) {
-    try {
-      const pkg = JSON.parse(fs.readFileSync(packagePath, 'utf-8'));
-      if (pkg?.version) {
-        console.log(`md2x v${pkg.version}`);
-        return;
-      }
-    } catch {
-      // try next
-    }
+  // Infer format from output path if not specified
+  let format = options.format;
+  if (!format && outputPath) {
+    format = inferFormatFromPath(outputPath) ?? undefined;
   }
-  console.log('md2x v1.0.0');
-}
 
-function printThemes(): void {
-  const themes = getAvailableThemes();
-  console.log('\nAvailable Themes:\n');
-  themes.forEach((theme) => {
-    console.log(`  - ${theme}`);
+  // Set default title from filename for HTML
+  const titleFromFile = path.basename(resolvedInputPath, path.extname(resolvedInputPath));
+
+  // Call convert with merged options
+  const result = await convert(markdown, {
+    ...options,
+    format,
+    basePath: options.basePath ?? path.dirname(resolvedInputPath),
+    title: options.title ?? titleFromFile,
   });
-  console.log('');
-}
-
-function parseArgs(args: string[]): NodeOptions {
-  const options: NodeOptions = {
-    input: '',
-    output: '',
-    theme: 'default',
-    format: 'pdf',
-    help: false,
-    version: false,
-    listThemes: false,
-    diagramMode: 'live',
-    hrPageBreak: null,
-  };
-
-  let i = 0;
-  const positional: string[] = [];
-
-  while (i < args.length) {
-    const arg = args[i];
-
-    // Some runners (e.g. `pnpm run <script> -- ...`) forward a literal `--` to the program.
-    // We don't use `--` as a meaningful token, so just ignore it.
-    if (arg === '--') {
-      i++;
-      continue;
-    }
-
-    if (arg === '-h' || arg === '--help') {
-      options.help = true;
-    } else if (arg === '-v' || arg === '--version') {
-      options.version = true;
-    } else if (arg === '--list-themes') {
-      options.listThemes = true;
-    } else if (arg === '--diagram-mode') {
-      i++;
-      if (i < args.length) {
-        const mode = String(args[i]).toLowerCase();
-        if (mode !== 'img' && mode !== 'live' && mode !== 'none') {
-          console.error(`Error: Invalid --diagram-mode "${args[i]}". Must be "img", "live", or "none".`);
-          process.exit(1);
-        }
-        options.diagramMode = mode as NodeOptions['diagramMode'];
-      } else {
-        console.error('Error: --diagram-mode requires a value (img | live | none)');
-        process.exit(1);
-      }
-    } else if (arg === '-o' || arg === '--output') {
-      i++;
-      if (i < args.length) {
-        options.output = args[i];
-      } else {
-        console.error('Error: --output requires a file path');
-        process.exit(1);
-      }
-    } else if (arg === '-t' || arg === '--theme') {
-      i++;
-      if (i < args.length) {
-        options.theme = args[i];
-      } else {
-        console.error('Error: --theme requires a theme name');
-        process.exit(1);
-      }
-    } else if (arg === '-f' || arg === '--format') {
-      i++;
-      if (i < args.length) {
-        const fmt = args[i].toLowerCase();
-        if (fmt !== 'pdf' && fmt !== 'docx' && fmt !== 'html') {
-          console.error(`Error: Invalid format "${args[i]}". Must be "pdf", "docx", or "html".`);
-          process.exit(1);
-        }
-        options.format = fmt as OutputFormat;
-      } else {
-        console.error('Error: --format requires a format (pdf, docx, or html)');
-        process.exit(1);
-      }
-    } else if (arg === '--hr-page-break') {
-      options.hrPageBreak = true;
-    } else if (arg === '--no-hr-page-break') {
-      options.hrPageBreak = false;
-    } else if (arg.startsWith('-')) {
-      console.error(`Error: Unknown option: ${arg}`);
-      process.exit(1);
-    } else {
-      positional.push(arg);
-    }
-
-    i++;
-  }
-
-  // Handle positional arguments
-  if (positional.length > 0) {
-    options.input = positional[0];
-  }
-  if (positional.length > 1 && !options.output) {
-    options.output = positional[1];
-  }
-
-  return options;
-}
-
-async function main(): Promise<void> {
-  const args = process.argv.slice(2);
-  const options = parseArgs(args);
-
-  // Handle help/version/list-themes
-  if (options.help) {
-    printHelp();
-    process.exit(0);
-  }
-
-  if (options.version) {
-    printVersion();
-    process.exit(0);
-  }
-
-  if (options.listThemes) {
-    printThemes();
-    process.exit(0);
-  }
-
-  // Validate input
-  if (!options.input) {
-    console.error('Error: Input file is required\n');
-    printHelp();
-    process.exit(1);
-  }
-
-  const inputPath = path.resolve(options.input);
-
-  // Check input file exists
-  if (!fs.existsSync(inputPath)) {
-    console.error(`Error: Input file not found: ${inputPath}`);
-    process.exit(1);
-  }
-
-  // Check input file is readable
-  try {
-    fs.accessSync(inputPath, fs.constants.R_OK);
-  } catch {
-    console.error(`Error: Cannot read input file: ${inputPath}`);
-    process.exit(1);
-  }
-
-  // Validate theme
-  const availableThemes = getAvailableThemes();
-  if (availableThemes.length > 0 && !availableThemes.includes(options.theme)) {
-    console.error(`Error: Unknown theme: ${options.theme}`);
-    console.error(`Available themes: ${formatThemeList(availableThemes)}`);
-    console.error('Tip: run `npx md2x --list-themes` to see the full list.');
-    process.exit(1);
-  }
 
   // Determine output path
-  let outputPath = options.output;
-  const outputExt = options.format === 'pdf' ? '.pdf' : options.format === 'docx' ? '.docx' : '.html';
-  if (!outputPath) {
-    const inputDir = path.dirname(inputPath);
-    const inputName = path.basename(inputPath, path.extname(inputPath));
-    outputPath = path.join(inputDir, `${inputName}${outputExt}`);
+  let resolvedOutputPath: string;
+  if (outputPath) {
+    resolvedOutputPath = path.resolve(outputPath);
   } else {
-    outputPath = path.resolve(outputPath);
+    const inputDir = path.dirname(resolvedInputPath);
+    const inputName = path.basename(resolvedInputPath, path.extname(resolvedInputPath));
+    const outputExt = result.format === 'pdf' ? '.pdf' : result.format === 'docx' ? '.docx' : '.html';
+    resolvedOutputPath = path.join(inputDir, `${inputName}${outputExt}`);
   }
 
-  // Ensure output directory exists
-  const outputDir = path.dirname(outputPath);
+  // Ensure output directory exists and write file
+  const outputDir = path.dirname(resolvedOutputPath);
   if (!fs.existsSync(outputDir)) {
     fs.mkdirSync(outputDir, { recursive: true });
   }
+  fs.writeFileSync(resolvedOutputPath, result.buffer);
 
-  // Perform conversion
-  const hrPageBreak = options.hrPageBreak ?? (options.format === 'html' ? false : true);
-  console.log(`Converting: ${path.basename(inputPath)}`);
-  console.log(`Format: ${options.format.toUpperCase()}`);
-  console.log(`Theme: ${options.theme}`);
-  console.log(`HR as page break: ${hrPageBreak}`);
-  if (options.format === 'html') {
-    console.log(`Diagram mode: ${options.diagramMode}`);
-  }
-
-  try {
-    if (options.format === 'pdf') {
-      const { NodePdfExporter } = await import('./node-exporter');
-      const exporter = new NodePdfExporter();
-      await exporter.exportToFile(inputPath, outputPath, {
-        theme: options.theme,
-        pdfHrAsPageBreak: hrPageBreak,
-      });
-    } else if (options.format === 'docx') {
-      const { NodeDocxExporter } = await import('./node-exporter');
-      const exporter = new NodeDocxExporter();
-      await exporter.exportToFile(inputPath, outputPath, {
-        theme: options.theme,
-        docxHrAsPageBreak: hrPageBreak,
-      });
-    } else {
-      const { NodeHtmlExporter } = await import('./node-exporter');
-      const exporter = new NodeHtmlExporter();
-      await exporter.exportToFile(inputPath, outputPath, {
-        theme: options.theme,
-        diagramMode: options.diagramMode,
-        htmlHrAsPageBreak: hrPageBreak,
-      });
-    }
-
-    console.log(`Output: ${outputPath}`);
-    console.log('Done!');
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error(`Error during conversion: ${message}`);
-    process.exit(1);
-  }
+  return {
+    buffer: result.buffer,
+    outputPath: resolvedOutputPath,
+    format: result.format,
+  };
 }
-
-main().catch((error) => {
-  console.error('Unexpected error:', error);
-  process.exit(1);
-});

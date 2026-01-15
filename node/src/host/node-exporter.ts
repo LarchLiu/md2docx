@@ -23,7 +23,7 @@ export type Md2DocxOptions = {
   theme?: string;
   basePath?: string;
   /** When true, horizontal rules (---, ***, ___) will be converted to page breaks (default: true) */
-  docxHrAsPageBreak?: boolean;
+  hrAsPageBreak?: boolean;
 };
 
 export type Md2PdfOptions = {
@@ -31,7 +31,7 @@ export type Md2PdfOptions = {
   basePath?: string;
   pdf?: PdfOptions;
   /** When true, horizontal rules (---, ***, ___) will be converted to page breaks */
-  pdfHrAsPageBreak?: boolean;
+  hrAsPageBreak?: boolean;
 };
 
 export type Md2HtmlOptions = {
@@ -68,7 +68,7 @@ export type Md2HtmlOptions = {
    * When true, horizontal rules (---, ***, ___) will be converted to page breaks in print/PDF.
    * Note: this hides `<hr>` visually (default: false for HTML).
    */
-  htmlHrAsPageBreak?: boolean;
+  hrAsPageBreak?: boolean;
   /** When true, emit a `<base href="file://.../">` tag so relative URLs resolve against basePath (default: true) */
   baseTag?: boolean;
 };
@@ -305,7 +305,7 @@ export class NodeDocxExporter {
     ensureBase64Globals();
 
     const themeId = options.theme || 'default';
-    const basePath = options.basePath || process.cwd();
+    const basePath = options.basePath ?? process.cwd();
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
     const { platform, getCapturedBuffer } = createNodePlatform({
@@ -313,7 +313,7 @@ export class NodeDocxExporter {
       selectedThemeId: themeId,
       output: { kind: 'buffer' },
       settings: {
-        docxHrAsPageBreak: options.docxHrAsPageBreak ?? true,
+        docxHrAsPageBreak: options.hrAsPageBreak ?? true,
       },
     });
 
@@ -357,56 +357,6 @@ export class NodeDocxExporter {
     }
   }
 
-  /**
-   * Export markdown file to DOCX file
-   */
-  async exportToFile(inputPath: string, outputPath: string, options: Md2DocxOptions = {}): Promise<void> {
-    ensureBase64Globals();
-
-    const markdown = fs.readFileSync(inputPath, 'utf-8');
-    const basePath = path.dirname(path.resolve(inputPath));
-    const themeId = options.theme || 'default';
-    const moduleDir = path.dirname(fileURLToPath(import.meta.url));
-
-    const { platform } = createNodePlatform({
-      moduleDir,
-      selectedThemeId: themeId,
-      output: { kind: 'file' },
-      settings: {
-        docxHrAsPageBreak: options.docxHrAsPageBreak ?? true,
-      },
-    });
-
-    const previousPlatform = (globalThis as any).platform;
-    (globalThis as any).platform = platform;
-
-    let browserRenderer: BrowserRenderer | null = null;
-    try {
-      browserRenderer = await createBrowserRenderer();
-      if (browserRenderer) {
-        await browserRenderer.initialize();
-      }
-
-      const themeConfig = await loadRendererThemeConfig(themeId);
-      const pluginRenderer = createPluginRenderer(browserRenderer, basePath, themeConfig);
-
-      const exporter = new DocxExporter(pluginRenderer);
-      exporter.setBaseUrl?.(pathToFileURL(path.resolve(inputPath)).href);
-
-      const result = await exporter.exportToDocx(markdown, path.resolve(outputPath), null);
-      if (!result.success) {
-        throw new Error(result.error || 'DOCX export failed');
-      }
-    } finally {
-      try {
-        if (browserRenderer) {
-          await browserRenderer.close();
-        }
-      } finally {
-        (globalThis as any).platform = previousPlatform;
-      }
-    }
-  }
 }
 
 /**
@@ -447,10 +397,10 @@ async function loadThemeCss(themeId: string): Promise<string> {
 /**
  * Load base CSS styles for PDF
  */
-async function loadBaseCss(pdfHrAsPageBreak: boolean = true): Promise<string> {
+async function loadBaseCss(hrAsPageBreak: boolean = true): Promise<string> {
   // Base styles for markdown rendering
-  // When pdfHrAsPageBreak is true, hr elements will trigger page breaks
-  const hrStyles = pdfHrAsPageBreak
+  // When hrAsPageBreak is true, hr elements will trigger page breaks
+  const hrStyles = hrAsPageBreak
     ? `
 /* Horizontal Rule as Page Break */
 hr {
@@ -834,7 +784,7 @@ export class NodePdfExporter {
     ensureBase64Globals();
 
     const themeId = options.theme || 'default';
-    const basePath = options.basePath || process.cwd();
+    const basePath = options.basePath ?? process.cwd();
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
 
     const { platform } = createNodePlatform({
@@ -866,7 +816,7 @@ export class NodePdfExporter {
       } catch (e) {
         console.warn('Failed to load KaTeX CSS for PDF export:', e);
       }
-      const baseCss = await loadBaseCss(options.pdfHrAsPageBreak ?? true);
+      const baseCss = await loadBaseCss(options.hrAsPageBreak ?? true);
       let themeCss = '';
       try {
         themeCss = await loadThemeCss(themeId);
@@ -889,28 +839,6 @@ export class NodePdfExporter {
     }
   }
 
-  /**
-   * Export markdown file to PDF file
-   */
-  async exportToFile(inputPath: string, outputPath: string, options: Md2PdfOptions = {}): Promise<void> {
-    ensureBase64Globals();
-
-    const markdown = fs.readFileSync(inputPath, 'utf-8');
-    const basePath = path.dirname(path.resolve(inputPath));
-
-    const buffer = await this.exportToBuffer(markdown, {
-      ...options,
-      basePath,
-    });
-
-    // Ensure output directory exists
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    fs.writeFileSync(outputPath, buffer);
-  }
 }
 
 /**
@@ -924,7 +852,7 @@ export class NodeHtmlExporter {
     ensureBase64Globals();
 
     const themeId = options.theme || 'default';
-    const basePath = options.basePath || process.cwd();
+    const basePath = options.basePath ?? process.cwd();
     const moduleDir = path.dirname(fileURLToPath(import.meta.url));
     const diagramMode: 'img' | 'live' | 'none' = options.diagramMode || 'live';
 
@@ -960,7 +888,7 @@ export class NodeHtmlExporter {
         console.warn('Failed to load KaTeX CSS for HTML export:', e);
       }
 
-      const baseCss = await loadBaseCss(options.htmlHrAsPageBreak ?? false);
+      const baseCss = await loadBaseCss(options.hrAsPageBreak ?? false);
 
       let themeCss = '';
       try {
@@ -1340,25 +1268,6 @@ ${liveBootstrap}
   async exportToBuffer(markdown: string, options: Md2HtmlOptions = {}): Promise<Buffer> {
     const html = await this.exportToString(markdown, options);
     return Buffer.from(html, 'utf8');
-  }
-
-  async exportToFile(inputPath: string, outputPath: string, options: Md2HtmlOptions = {}): Promise<void> {
-    const markdown = fs.readFileSync(inputPath, 'utf-8');
-    const basePath = options.basePath || path.dirname(path.resolve(inputPath));
-    const title = options.title || path.basename(inputPath, path.extname(inputPath));
-
-    const outputDir = path.dirname(outputPath);
-    if (!fs.existsSync(outputDir)) {
-      fs.mkdirSync(outputDir, { recursive: true });
-    }
-
-    const html = await this.exportToString(markdown, {
-      ...options,
-      basePath,
-      title,
-    });
-
-    fs.writeFileSync(outputPath, html, 'utf8');
   }
 }
 
