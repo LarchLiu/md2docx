@@ -1,6 +1,6 @@
 # Node package local ignores
 
 # Node test artifacts (generated exports)
-/test/*.pdf
-/test/*.docx
-/test/*.html
+/test/**/*.pdf
+/test/**/*.docx
+/test/**/*.html
