@@ -23,7 +23,6 @@
     "dev": "node build.mjs --watch --run",
     "cli": "node dist/md2x.js",
     "test": "node --test test/*.test.mjs",
-    "postinstall": "puppeteer browsers install chrome",
     "prepublishOnly": "node build.mjs"
   },
   "keywords": [
