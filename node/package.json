@@ -1,6 +1,6 @@
 {
   "name": "md2x",
-  "version": "0.5.1",
+  "version": "0.5.2",
   "description": "Markdown converter (local, no server). Supports Mermaid/Graphviz/Vega/HTML/SVG rendering, math, and code highlighting.",
   "type": "module",
   "private": false,
