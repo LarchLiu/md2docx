@@ -107,7 +107,7 @@ function createMcpServer() {
   });
 
   server.registerTool(
-    "md2x_to_html",
+    "markdown_to_html",
     {
       description: "Convert markdown to an HTML. If convert succeeds, returns the file path URL.",
       inputSchema: {
@@ -132,7 +132,7 @@ function createMcpServer() {
   );
 
   server.registerTool(
-    "md2x_to_pdf",
+    "markdown_to_pdf",
     {
       description:
         "Convert markdown to PDF. If convert succeeds, returns the file path URL.",
@@ -156,7 +156,7 @@ function createMcpServer() {
   );
 
   server.registerTool(
-    "md2x_to_docx",
+    "markdown_to_docx",
     {
       description: "Convert markdown to DOCX. If convert succeeds, returns the file path URL.",
       inputSchema: {
@@ -173,7 +173,7 @@ function createMcpServer() {
   );
 
   server.registerTool(
-    "md2x_convert",
+    "markdown_convert",
     {
       description:
         "Auto convert via md2x.convert() (front matter supported). If convert succeeds, returns the file path URL.",
@@ -239,10 +239,10 @@ function createMcpServer() {
             {
               name: "md2x-mcp",
               tools: [
-                "md2x_to_html",
-                "md2x_to_pdf",
-                "md2x_to_docx",
-                "md2x_convert",
+                "markdown_to_html",
+                "markdown_to_pdf",
+                "markdown_to_docx",
+                "markdown_convert",
                 "resources_upload",
               ],
               endpoints: {

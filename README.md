@@ -79,14 +79,14 @@ Endpoints:
 
 Tools:
 
-- `md2x_to_html` / `md2x_to_pdf` / `md2x_to_docx` - Convert Markdown to HTML/PDF/DOCX
-- `md2x_convert` - Auto convert via `md2x.convert()` (front matter supported)
+- `markdown_to_html` / `markdown_to_pdf` / `markdown_to_docx` - Convert Markdown to HTML/PDF/DOCX
+- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported)
 - `resources_upload` - Upload a file to `/resources` (e.g. images referenced by Markdown)
 
 Notes:
 
 - The conversion tools return an MCP `resource_link` pointing to the generated file URL.
-- Config: `MD2X_BASE_URL` (used to build the public `/resources` URL). See `mcp/README.md`.
+- Config: `PORT` (default `3000`) and `MD2X_BASE_URL` (used to build the public `/resources` URL). See `mcp/README.md`.
 
 ## Puppeteer / Chrome install
 

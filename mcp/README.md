@@ -21,10 +21,10 @@ By default it listens on `http://localhost:3000` (or whatever `PORT` is set to i
 
 Conversion tools return an MCP `resource_link` pointing to a generated file URL under `/resources`.
 
-- `md2x_to_html` - Convert markdown to HTML
-- `md2x_to_pdf` - Convert markdown to PDF
-- `md2x_to_docx` - Convert markdown to DOCX
-- `md2x_convert` - Auto convert via `md2x.convert()` (front matter supported)
+- `markdown_to_html` - Convert markdown to HTML
+- `markdown_to_pdf` - Convert markdown to PDF
+- `markdown_to_docx` - Convert markdown to DOCX
+- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported)
 - `resources_upload` - Upload a file to `/resources` (base64 content) and get back a URL
 
 ## Environment Variables

@@ -79,8 +79,8 @@ Endpoints:
 
 Tools:
 
-- `md2x_to_html` / `md2x_to_pdf` / `md2x_to_docx` - Convert Markdown to HTML/PDF/DOCX
-- `md2x_convert` - Auto convert via `md2x.convert()` (front matter supported)
+- `markdown_to_html` / `markdown_to_pdf` / `markdown_to_docx` - Convert Markdown to HTML/PDF/DOCX
+- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported)
 - `resources_upload` - Upload a file to `/resources` (e.g. images referenced by Markdown)
 
 Notes:
