@@ -1,6 +1,6 @@
 ---
 name: md2x
-description: Convert Markdown files to PDF, DOCX, or HTML with support for diagrams (Mermaid, Graphviz, Vega, Infographic), math formulas, and code highlighting. Best for document generation, report creation, and content export. Runs locally without server dependencies.
+description: Convert Markdown files to PDF, DOCX, or HTML with support for diagrams (Mermaid, Graphviz, Vega, Infographic), math formulas, and code highlighting. Best for document generation, report creation, and content export. Runs locally without server dependencies. This is a CLI tool that must be used with `npx md2x <input.md> [options]`. 
 ---
 
 # md2x - Markdown Converter
