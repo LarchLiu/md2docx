@@ -12,6 +12,12 @@ tags: [markdown, test, demo]
 
 本文档用于测试 Chrome 扩展的 Markdown 渲染功能。各类图表的完整演示请参阅独立文档。
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://www.apache.org/licenses/LICENSE-2.0)
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+[![React 19](https://img.shields.io/badge/React-19-61DAFB.svg)](https://reactjs.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+[![Discord](https://img.shields.io/badge/Discord-5865F2.svg?logo=discord&logoColor=white)](https://discord.gg/)
+
 ## 测试内容概览
 
 1. **基础语法** - 标题、段落、文本格式
