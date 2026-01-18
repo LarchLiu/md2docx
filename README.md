@@ -179,7 +179,8 @@ Endpoints:
 Tools:
 
 - `markdown_to_html` / `markdown_to_pdf` / `markdown_to_docx` - Convert Markdown to HTML/PDF/DOCX
-- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported)
+- `markdown_to_image` - Convert Markdown to an image (`png`/`jpg`/`jpeg`/`webp`), may return multiple parts for very tall pages
+- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported; includes image formats)
 - `resources_upload` - Upload a file to `/resources` (e.g. images referenced by Markdown)
 
 Notes:

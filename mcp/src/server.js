@@ -64,6 +64,13 @@ function getMimeTypeForFormat(format) {
       return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
     case "html":
       return "text/html";
+    case "png":
+      return "image/png";
+    case "jpg":
+    case "jpeg":
+      return "image/jpeg";
+    case "webp":
+      return "image/webp";
     default:
       return "application/octet-stream";
   }
@@ -78,25 +85,48 @@ async function executeConvert(options, format) {
   });
 
   const actualFormat = result.format ?? format;
+  const content = []
   const buf = result.buffer ?? result;
+  const bufs = result.buffers ?? null;
   const mimeType = getMimeTypeForFormat(actualFormat);
   const filename = `md2x-output-${randomUUID()}.${actualFormat}`;
   const fullPath = resolve(basePath, filename);
   await writeFile(fullPath, buf);
   const url = `${getResourcesBaseUrl()}/${filename}`;
+  content.push({
+    type: "resource_link",
+    uri: url,
+    name: filename,
+    mimeType: mimeType,
+    annotations: {
+      audience: ["user"],
+      priority: 1.0,
+      lastModified: new Date().toISOString(),
+    },
+  });
+
+  if (bufs && Array.isArray(bufs) && bufs.length > 1) {
+    for (let i = 0; i < bufs.length; i++) {
+      const partFilename = `md2x-output-${randomUUID()}-part${i + 1}.${actualFormat}`;
+      const partFullPath = resolve(basePath, partFilename);
+      await writeFile(partFullPath, bufs[i]);
+      const partUrl = `${getResourcesBaseUrl()}/${partFilename}`;
+      content.push({
+        type: "resource_link",
+        uri: partUrl,
+        name: partFilename,
+        mimeType: mimeType,
+        annotations: {
+          audience: ["user"],
+          priority: 1.0,
+          lastModified: new Date().toISOString(),
+        },
+      });
+    }
+  }
 
   return {
-    content: [{
-      type: "resource_link",
-      uri: url,
-      name: filename,
-      mimeType: mimeType,
-      annotations: {
-        audience: ["user"],
-        priority: 1.0,
-        lastModified: new Date().toISOString(),
-      },
-    }],
+    content,
   };
 }
 
@@ -173,6 +203,26 @@ function createMcpServer() {
   );
 
   server.registerTool(
+    "markdown_to_image",
+    {
+      description:
+        "Convert markdown to an image (png/jpg/jpeg/webp). If convert succeeds, returns the file path URL(s). Very tall pages may produce multiple parts.",
+      inputSchema: {
+        markdown: z.string(),
+        format: z.enum(["png", "jpg", "jpeg", "webp"]).optional(),
+        theme: z.string().optional(),
+        hrAsPageBreak: z.boolean().optional(),
+      },
+    },
+    async (args) => executeConvert({
+      markdown: args.markdown,
+      theme: args.theme ?? "default",
+      // For image output, default to "false" (align with md2x Node host defaults).
+      hrAsPageBreak: args.hrAsPageBreak ?? false,
+    }, args.format ?? "png")
+  );
+
+  server.registerTool(
     "markdown_convert",
     {
       description:
@@ -180,7 +230,7 @@ function createMcpServer() {
       inputSchema: {
         markdown: z.string(),
         // When present, overrides any front matter format.
-        format: z.enum(["pdf", "docx", "html"]).optional(),
+        format: z.enum(["pdf", "docx", "html", "png", "jpg", "jpeg", "webp"]).optional(),
         theme: z.string().optional(),
         title: z.string().optional(),
         diagramMode: z.enum(["img", "live", "none"]).optional(),
@@ -242,6 +292,7 @@ function createMcpServer() {
                 "markdown_to_html",
                 "markdown_to_pdf",
                 "markdown_to_docx",
+                "markdown_to_image",
                 "markdown_convert",
                 "resources_upload",
               ],
