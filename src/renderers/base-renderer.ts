@@ -94,14 +94,14 @@ export class BaseRenderer {
    * Calculate scale for canvas rendering
    * This is used by renderers that render to canvas
    * PNG size will be divided by 4 in DOCX, so we multiply by 4 here
-   * Formula: (14/16) * (themeFontSize/12) * 4
+   * Formula: (themeFontSize/12) * 4
    * @param themeConfig - Theme configuration
    * @returns Scale factor for canvas
    */
   calculateCanvasScale(themeConfig: RendererThemeConfig | null): number {
     const baseFontSize = 12;
     const themeFontSize = themeConfig?.fontSize || baseFontSize;
-    return (14.0 / 16.0) * (themeFontSize / baseFontSize) * 4.0;
+    return (themeFontSize / baseFontSize) * 4.0;
   }
 
   /**

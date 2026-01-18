@@ -23,7 +23,6 @@ import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkCjkFriendly from 'remark-cjk-friendly';
 import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-breaks';
 import remarkMath from 'remark-math';
 import remarkGemoji from 'remark-gemoji';
 import remarkSuperSub from '../plugins/remark-super-sub';
@@ -435,7 +434,6 @@ class DocxExporter {
       .use(remarkParse)
       .use(remarkCjkFriendly)
       .use(remarkGfm, { singleTilde: false })
-      .use(remarkBreaks)
       .use(remarkMath)
       .use(remarkGemoji)
       .use(remarkSuperSub);
