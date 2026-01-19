@@ -20,6 +20,7 @@ import {
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const RESOURCES_PATH = "resources";
+const HTML_PATH = "html";
 
 const pdfOptionsSchema = z.object({
   format: z.enum(["A4", "Letter", "Legal", "A3", "A5"]).optional(),
@@ -51,9 +52,12 @@ function getBasePath() {
 }
 
 function getResourcesBaseUrl() {
+  return `${getServerBaseUrl()}/${RESOURCES_PATH}`;
+}
+
+function getServerBaseUrl() {
   const port = process.env.PORT || 3000;
-  const baseUrl = process.env.MD2X_BASE_URL || `http://localhost:${port}`;
-  return `${baseUrl}/${RESOURCES_PATH}`;
+  return process.env.MD2X_BASE_URL || `http://localhost:${port}`;
 }
 
 function getMimeTypeForFormat(format) {
@@ -130,6 +134,34 @@ async function executeConvert(options, format) {
   };
 }
 
+async function executeConvertWithHosted(options, format, hosted = false) {
+  const data = await executeConvert(options, format);
+  if (hosted) {
+    const fromSegment = `/${RESOURCES_PATH}/`;
+    const toSegment = `/${HTML_PATH}/`;
+    data.content = data.content.map((item) => {
+      if (item.type === "resource_link" && item.mimeType === "text/html") {
+        // TODO: Persist data, or schedule resource cleanup.
+        try {
+          const u = new URL(item.uri);
+          if (u.pathname.startsWith(fromSegment)) {
+            u.pathname = `${toSegment}${u.pathname.slice(fromSegment.length)}`;
+            return { ...item, uri: u.toString() };
+          }
+        } catch {
+          // Ignore and fallback to string handling.
+        }
+
+        if (typeof item.uri === "string" && item.uri.includes(fromSegment)) {
+          return { ...item, uri: item.uri.replace(fromSegment, toSegment) };
+        }
+      }
+      return item;
+    });
+  }
+  return data;
+}
+
 function createMcpServer() {
   const server = new McpServer({
     name: "md2x-mcp",
@@ -148,9 +180,10 @@ function createMcpServer() {
         standalone: z.boolean().optional(),
         baseTag: z.boolean().optional(),
         hrAsPageBreak: z.boolean().optional(),
+        hosted: z.boolean().optional(),
       },
     },
-    async (args) => executeConvert({
+    async (args) => executeConvertWithHosted({
       markdown: args.markdown,
       theme: args.theme ?? "default",
       title: args.title ?? "Document",
@@ -158,7 +191,7 @@ function createMcpServer() {
       standalone: args.standalone,
       baseTag: args.baseTag,
       hrAsPageBreak: args.hrAsPageBreak,
-    }, "html")
+    }, "html", args.hosted ?? false)
   );
 
   server.registerTool(
@@ -238,9 +271,10 @@ function createMcpServer() {
         baseTag: z.boolean().optional(),
         hrAsPageBreak: z.boolean().optional(),
         pdf: pdfOptionsSchema,
+        hosted: z.boolean().optional(),
       },
     },
-    async (args) => executeConvert({
+    async (args) => executeConvertWithHosted({
       markdown: args.markdown,
       format: args.format,
       theme: args.theme,
@@ -250,7 +284,7 @@ function createMcpServer() {
       baseTag: args.baseTag,
       hrAsPageBreak: args.hrAsPageBreak,
       pdf: args.pdf,
-    }, args.format)
+    }, args.format, args.hosted ?? false)
   );
 
   server.registerTool(
@@ -318,6 +352,22 @@ app.use(express.json({ limit: "25mb" }));
 
 // Static file server for resources
 app.use(`/${RESOURCES_PATH}`, express.static(getBasePath()));
+
+// HTML page access: /html/<file>.html (served from the same resources directory)
+// Only allow ".html" via this route to avoid exposing other resource types through /html.
+app.use(
+  `/${HTML_PATH}`,
+  (req, res, next) => {
+    if (!req.path.toLowerCase().endsWith(".html")) {
+      res.status(404).send("Not Found");
+      return;
+    }
+    // Hint browsers to render as a page when possible.
+    res.setHeader("Content-Disposition", "inline");
+    next();
+  },
+  express.static(getBasePath())
+);
 
 app.get("/healthz", (_req, res) => {
   res.status(200).json({ ok: true });
