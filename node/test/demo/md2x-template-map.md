@@ -1,3 +1,7 @@
+---
+title: Map
+---
+
 ```md2x
 {
   type: 'vue',

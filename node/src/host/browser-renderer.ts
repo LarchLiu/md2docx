@@ -438,6 +438,89 @@ export async function createBrowserRenderer(): Promise<BrowserRenderer | null> {
       try {
         await setBaseHref(basePath);
 
+        // md2x templates may include canvas/WebGL (e.g. MapLibre) which cannot be captured
+        // by the SVG foreignObject-based HtmlRenderer. Use Puppeteer element screenshot instead.
+        if (type === 'md2x') {
+          // Match in-browser renderers' default high-res scale (see BaseRenderer.calculateCanvasScale()).
+          // Clamp to avoid extremely large images.
+          const calcDsf = (cfg: RendererThemeConfig | null): number => {
+            const baseFontSize = 12;
+            const themeFontSize = cfg?.fontSize ?? baseFontSize;
+            const s = (14.0 / 16.0) * (themeFontSize / baseFontSize) * 4.0;
+            return Math.max(1, Math.min(4, s));
+          };
+
+          try {
+            const dsf = calcDsf(themeConfig ?? null);
+            const vp = page.viewport();
+            // Only update when needed; changing viewport can be expensive.
+            if (!vp || vp.deviceScaleFactor !== dsf) {
+              await page.setViewport({
+                width: vp?.width ?? 2000,
+                height: vp?.height ?? 2000,
+                deviceScaleFactor: dsf,
+              });
+            }
+          } catch {
+            // ignore (best-effort)
+          }
+
+          const id = await page.evaluate(
+            async (renderInput: string | object, cfg: RendererThemeConfig | null) => {
+              const win = window as any;
+              const fn = win.__md2xRenderToDom;
+              if (typeof fn !== 'function') {
+                throw new Error('__md2xRenderToDom is not available on page');
+              }
+              return await fn(renderInput, cfg);
+            },
+            content,
+            themeConfig ?? null
+          );
+
+          try {
+            await page.waitForSelector(`#${id}`, { timeout: 30_000 });
+          } catch {
+            // ignore
+          }
+
+          // Best-effort: wait for tiles/assets to settle.
+          try {
+            await (page as any).waitForNetworkIdle?.({ idleTime: 500, timeout: 15_000 });
+          } catch {
+            // ignore
+          }
+
+          const el = await page.$(`#${id}`);
+          if (!el) {
+            throw new Error(`md2x screenshot element not found: #${id}`);
+          }
+
+          const box = await el.boundingBox();
+          const dpr = await page.evaluate(() => window.devicePixelRatio || 1).catch(() => 1);
+          const buf = await el.screenshot({ type: 'png', omitBackground: true, captureBeyondViewport: true } as any);
+
+          try {
+            await page.evaluate((rid: string) => {
+              const win = window as any;
+              if (typeof win.__md2xCleanupDom === 'function') {
+                win.__md2xCleanupDom(rid);
+              }
+            }, id);
+          } catch {
+            // ignore
+          }
+
+          const b = Buffer.isBuffer(buf) ? buf : Buffer.from(buf as any);
+          return {
+            base64: b.toString('base64'),
+            // Puppeteer reports element bounding boxes in CSS pixels; convert to physical pixels using devicePixelRatio.
+            width: Math.max(1, Math.round((box?.width ?? 1) * (typeof dpr === 'number' && Number.isFinite(dpr) ? dpr : 1))),
+            height: Math.max(1, Math.round((box?.height ?? 1) * (typeof dpr === 'number' && Number.isFinite(dpr) ? dpr : 1))),
+            format: 'png',
+          };
+        }
+
         const result = await page.evaluate(
           async (renderType: string, renderInput: string | object, cfg: RendererThemeConfig | null) => {
             const win = window as any;
