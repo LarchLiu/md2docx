@@ -225,6 +225,10 @@ const data = templateData;
 - `template`: template file name/path
   - if you only pass a filename (e.g. `example.vue`), it is treated as `${type}/${template}` (e.g. `vue/example.vue`)
 - `data`: arbitrary JSON-serializable data (injected by replacing the `templateData` placeholder)
+- `allowTemplateAssets` (optional, **unsafe**): when `true`, allow templates to load extra JS/CSS URLs declared in the template file header:
+  - `<!-- TemplateConfig: {"assets":{"scripts":["..."],"styles":["..."]}} -->`
+  - Useful for UMD/IIFE globals (e.g. `window.dayjs`), not npm-style `import`.
+  - Backward compat: `allowCdn` is accepted as an alias.
 - `allowScripts` (optional, **unsafe**, html only): when exporting **images** in `diagramMode: "img"`, set `allowScripts: true` to execute inline `<script>` blocks before rendering to PNG.
   - not supported: `<script type="module">`
   - external `<script src="...">` is not supported for image rendering (use inline scripts)

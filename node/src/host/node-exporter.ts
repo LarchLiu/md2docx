@@ -644,10 +644,132 @@ function buildLiveDiagramBootstrap(
         const s = document.createElement('script');
         s.src = src;
         s.async = false;
-        s.onload = () => resolve();
-        s.onerror = () => reject(new Error('Failed to load script: ' + src));
+        s.onload = () => { try { s.__md2xLoaded = true; } catch {} resolve(); };
+        s.onerror = () => { try { s.__md2xLoaded = true; } catch {} reject(new Error('Failed to load script: ' + src)); };
         document.head.appendChild(s);
       });
+    }
+
+    function normalizeStringList(value) {
+      if (!Array.isArray(value)) return [];
+      const out = [];
+      const seen = new Set();
+      for (const v of value) {
+        if (typeof v !== 'string') continue;
+        const s = v.trim();
+        if (!s) continue;
+        if (seen.has(s)) continue;
+        seen.add(s);
+        out.push(s);
+      }
+      return out;
+    }
+
+    function normalizeTemplateConfig(value) {
+      if (!value || typeof value !== 'object') return null;
+      const assets = value.assets;
+      if (!assets || typeof assets !== 'object') return null;
+      const scripts = normalizeStringList(assets.scripts);
+      const styles = normalizeStringList(assets.styles);
+      if (!scripts.length && !styles.length) return null;
+      return { assets: { scripts, styles } };
+    }
+
+    function extractTemplateConfigFromHead(source) {
+      const raw = String(source || '');
+      if (!raw) return { source: raw, templateConfig: null };
+
+      let i = 0;
+      // BOM
+      if (raw.charCodeAt(0) === 0xfeff) i = 1;
+      // leading whitespace/newlines
+      while (i < raw.length) {
+        const ch = raw[i];
+        if (ch === ' ' || ch === '\\t' || ch === '\\n' || ch === '\\r') i++;
+        else break;
+      }
+
+      if (raw.slice(i, i + 4) !== '<!--') return { source: raw, templateConfig: null };
+      const end = raw.indexOf('-->', i + 4);
+      if (end === -1) return { source: raw, templateConfig: null };
+
+      const commentBody = raw.slice(i + 4, end).trim();
+      const prefix = 'TemplateConfig:';
+      if (commentBody.slice(0, prefix.length) !== prefix) return { source: raw, templateConfig: null };
+
+      const jsonText = commentBody.slice(prefix.length).trim();
+
+      // Strip the header comment even if parsing fails (so SFC/Svelte compilers won't choke on it).
+      let after = raw.slice(end + 3);
+      if (after.slice(0, 2) === '\\r\\n') after = after.slice(2);
+      else if (after[0] === '\\n' || after[0] === '\\r') after = after.slice(1);
+      const cleaned = raw.slice(0, i) + after;
+
+      if (!jsonText) return { source: cleaned, templateConfig: null };
+
+      try {
+        const parsed = JSON.parse(jsonText);
+        return { source: cleaned, templateConfig: normalizeTemplateConfig(parsed) };
+      } catch (e) {
+        const msg = (e && e.message) ? e.message : String(e);
+        return { source: cleaned, templateConfig: null, error: msg };
+      }
+    }
+
+    function loadCssOnce(href) {
+      const url = resolveHref(href, baseHref || undefined);
+      if (!url) return Promise.resolve();
+      const esc = (window.CSS && typeof window.CSS.escape === 'function') ? window.CSS.escape(url) : String(url).replace(/"/g, '\\\\\"');
+      const existing = document.querySelector('link[rel="stylesheet"][href="' + esc + '"]');
+      if (existing) return Promise.resolve();
+
+      return new Promise((resolve) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.href = url;
+        link.onload = () => resolve();
+        link.onerror = () => resolve();
+        document.head.appendChild(link);
+      });
+    }
+
+    function loadScriptOnce(src, globalName) {
+      if (globalName) {
+        try {
+          if (window[globalName]) return Promise.resolve();
+        } catch {}
+      }
+
+      const url = resolveHref(src, baseHref || undefined);
+      if (!url) return Promise.resolve();
+
+      const esc = (window.CSS && typeof window.CSS.escape === 'function') ? window.CSS.escape(url) : String(url).replace(/"/g, '\\\\\"');
+      const existing = document.querySelector('script[src="' + esc + '"]');
+      if (existing) {
+        if (existing.__md2xLoaded) return Promise.resolve();
+        return new Promise((resolve, reject) => {
+          existing.addEventListener('load', () => { try { existing.__md2xLoaded = true; } catch {} resolve(); }, { once: true });
+          existing.addEventListener('error', () => reject(new Error('Failed to load script: ' + url)), { once: true });
+        });
+      }
+
+      return loadScript(url).then(() => {
+        try {
+          const el = document.querySelector('script[src="' + esc + '"]');
+          if (el) el.__md2xLoaded = true;
+        } catch {}
+      });
+    }
+
+    async function loadTemplateAssets(templateConfig) {
+      const scripts = normalizeStringList(templateConfig && templateConfig.assets ? templateConfig.assets.scripts : null);
+      const styles = normalizeStringList(templateConfig && templateConfig.assets ? templateConfig.assets.styles : null);
+      for (const href of styles) {
+        await loadCssOnce(href);
+      }
+      for (const src of scripts) {
+        await loadScriptOnce(src);
+      }
     }
 
     let __md2xSvelteCompilerPromise = null;
@@ -1066,9 +1188,13 @@ function buildLiveDiagramBootstrap(
       const type = (cfg.type != null) ? String(cfg.type).toLowerCase() : '';
       const template = (cfg.template != null) ? String(cfg.template) : '';
       const data = cfg.data;
+      const allowTemplateAssets =
+        (typeof cfg.allowTemplateAssets === 'boolean')
+          ? cfg.allowTemplateAssets
+          : ((typeof cfg.allowCdn === 'boolean') ? cfg.allowCdn : false);
       if (type !== 'vue' && type !== 'html' && type !== 'svelte') return null;
       if (!template) return null;
-      return { type, template, data };
+      return { type, template, data, allowTemplateAssets };
     }
 
     async function renderMd2xHtml(cfg, mount) {
@@ -1079,6 +1205,20 @@ function buildLiveDiagramBootstrap(
         if (typeof tpl !== 'string' || !tpl) {
           mount.textContent = 'Missing md2x html template: ' + templateRef;
           return;
+        }
+
+        const extracted = extractTemplateConfigFromHead(tpl);
+        if (cfg.allowTemplateAssets) {
+          if (extracted.error) {
+            mount.textContent = 'Invalid TemplateConfig JSON: ' + extracted.error;
+            return;
+          }
+          try {
+            await loadTemplateAssets(extracted.templateConfig);
+          } catch (e) {
+            mount.textContent = 'Failed to load TemplateConfig assets.';
+            return;
+          }
         }
 
         // Same data-injection approach as md2x Vue templates: replace the templateData placeholder.
@@ -1092,7 +1232,7 @@ function buildLiveDiagramBootstrap(
             return 'null';
           }
         })();
-        mount.innerHTML = tpl.split('templateData').join('(' + json + ')');
+        mount.innerHTML = extracted.source.split('templateData').join('(' + json + ')');
 
         // Browsers treat <script> tags inserted via innerHTML as inert (they won't execute).
         // Re-create them in-place to allow "script + markup in one HTML file" templates.
@@ -1157,6 +1297,21 @@ function buildLiveDiagramBootstrap(
         return;
       }
 
+      const extracted = extractTemplateConfigFromHead(rootSource);
+      if (cfg.allowTemplateAssets) {
+        if (extracted.error) {
+          mount.textContent = 'Invalid TemplateConfig JSON: ' + extracted.error;
+          return;
+        }
+        try {
+          // Load after Vue runtime is available (common for Vue plugin UMDs).
+          await loadTemplateAssets(extracted.templateConfig);
+        } catch (e) {
+          mount.textContent = 'Failed to load TemplateConfig assets.';
+          return;
+        }
+      }
+
       // Inject md2x data into the template by replacing the templateData placeholder.
       // This avoids fetch() and also avoids having to require every user template to define props.
       const json = (() => {
@@ -1171,7 +1326,7 @@ function buildLiveDiagramBootstrap(
         }
       })();
       // NOTE: avoid \\b in this template-literal-generated script (it would become a backspace character).
-      const rootPatchedSource = rootSource.split('templateData').join('(' + json + ')');
+      const rootPatchedSource = extracted.source.split('templateData').join('(' + json + ')');
 
       const options = {
         moduleCache: { vue: Vue },
@@ -1241,6 +1396,20 @@ function buildLiveDiagramBootstrap(
         return;
       }
 
+      const extracted = extractTemplateConfigFromHead(rootSource);
+      if (cfg.allowTemplateAssets) {
+        if (extracted.error) {
+          mount.textContent = 'Invalid TemplateConfig JSON: ' + extracted.error;
+          return;
+        }
+        try {
+          await loadTemplateAssets(extracted.templateConfig);
+        } catch (e) {
+          mount.textContent = 'Failed to load TemplateConfig assets.';
+          return;
+        }
+      }
+
       const json = (() => {
         try {
           const j = JSON.stringify(cfg.data ?? null);
@@ -1250,7 +1419,7 @@ function buildLiveDiagramBootstrap(
           return 'null';
         }
       })();
-      const patchedSource = rootSource.split('templateData').join('(' + json + ')');
+      const patchedSource = extracted.source.split('templateData').join('(' + json + ')');
 
       let compilerMod;
       try {

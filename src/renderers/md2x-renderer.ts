@@ -27,6 +27,13 @@ export type Md2xTemplateConfig = {
   template: string;
   data?: unknown;
   /**
+   * Unsafe: when true, allow templates to load extra CSS/JS URLs declared in the template header comment:
+   *   <!-- TemplateConfig: {"assets":{"scripts":[...],"styles":[...]}} -->
+   *
+   * Intended for UMD/IIFE globals (e.g. window.dayjs), not npm-style `import`.
+   */
+  allowTemplateAssets?: boolean;
+  /**
    * Unsafe: when true (html templates only), execute inline <script> blocks before rendering to PNG.
    * This is required because HtmlRenderer sanitizes scripts and SVG foreignObject never executes them.
    */
@@ -420,8 +427,12 @@ export function parseMd2xTemplateConfig(rawCode: string): Md2xTemplateConfig {
       throw new Error('md2x.type must be "vue", "html", or "svelte"');
     }
     if (!template) throw new Error('md2x.template is required');
+    const allowTemplateAssets =
+      typeof (parsed as any).allowTemplateAssets === 'boolean'
+        ? (parsed as any).allowTemplateAssets
+        : (typeof (parsed as any).allowCdn === 'boolean' ? (parsed as any).allowCdn : undefined);
     const allowScripts = typeof (parsed as any).allowScripts === 'boolean' ? (parsed as any).allowScripts : undefined;
-    return { type, template, data: (parsed as any).data, allowScripts };
+    return { type, template, data: (parsed as any).data, allowTemplateAssets, allowScripts };
   } catch {
     // continue
   }
@@ -449,8 +460,12 @@ export function parseMd2xTemplateConfig(rawCode: string): Md2xTemplateConfig {
   }
   if (!template) throw new Error('md2x.template is required');
 
+  const allowTemplateAssets =
+    typeof (parsed as any).allowTemplateAssets === 'boolean'
+      ? (parsed as any).allowTemplateAssets
+      : (typeof (parsed as any).allowCdn === 'boolean' ? (parsed as any).allowCdn : undefined);
   const allowScripts = typeof (parsed as any).allowScripts === 'boolean' ? (parsed as any).allowScripts : undefined;
-  return { type, template, data: (parsed as any).data, allowScripts };
+  return { type, template, data: (parsed as any).data, allowTemplateAssets, allowScripts };
 }
 
 function jsonForInlineJs(value: unknown): string {
@@ -462,6 +477,118 @@ function injectTemplateData(source: string, data: unknown): string {
   const json = jsonForInlineJs(data ?? null);
   // Keep it simple and robust: treat templateData as an identifier placeholder.
   return String(source || '').split('templateData').join(`(${json})`);
+}
+
+type TemplateConfig = {
+  assets?: {
+    scripts?: string[];
+    styles?: string[];
+  };
+};
+
+function normalizeStringList(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const v of value) {
+    if (typeof v !== 'string') continue;
+    const s = v.trim();
+    if (!s) continue;
+    if (seen.has(s)) continue;
+    seen.add(s);
+    out.push(s);
+  }
+  return out;
+}
+
+function normalizeTemplateConfig(value: unknown): TemplateConfig | null {
+  if (!value || typeof value !== 'object') return null;
+  const assets = (value as any).assets;
+  if (!assets || typeof assets !== 'object') return null;
+  const scripts = normalizeStringList((assets as any).scripts);
+  const styles = normalizeStringList((assets as any).styles);
+  if (!scripts.length && !styles.length) return null;
+  return { assets: { scripts, styles } };
+}
+
+function extractTemplateConfigFromHead(source: string): {
+  source: string;
+  templateConfig: TemplateConfig | null;
+  error?: string;
+} {
+  const raw = String(source || '');
+  if (!raw) return { source: raw, templateConfig: null };
+
+  let i = 0;
+  // BOM
+  if (raw.charCodeAt(0) === 0xfeff) i = 1;
+  // leading whitespace/newlines
+  while (i < raw.length && /\s/.test(raw[i]!)) i++;
+
+  if (raw.slice(i, i + 4) !== '<!--') return { source: raw, templateConfig: null };
+  const end = raw.indexOf('-->', i + 4);
+  if (end === -1) return { source: raw, templateConfig: null };
+
+  const commentBody = raw.slice(i + 4, end).trim();
+  const prefix = 'TemplateConfig:';
+  if (!commentBody.startsWith(prefix)) return { source: raw, templateConfig: null };
+
+  const jsonText = commentBody.slice(prefix.length).trim();
+
+  // Strip the header comment even if parsing fails (so SFC compilers won't choke on it).
+  let after = raw.slice(end + 3);
+  if (after.startsWith('\r\n')) after = after.slice(2);
+  else if (after.startsWith('\n') || after.startsWith('\r')) after = after.slice(1);
+  const cleaned = raw.slice(0, i) + after;
+
+  if (!jsonText) return { source: cleaned, templateConfig: null };
+
+  try {
+    const parsed = JSON.parse(jsonText);
+    return { source: cleaned, templateConfig: normalizeTemplateConfig(parsed) };
+  } catch (e) {
+    return { source: cleaned, templateConfig: null, error: (e as Error).message };
+  }
+}
+
+function resolveAssetUrl(raw: string): string {
+  const s = String(raw || '').trim();
+  if (!s) return s;
+  try {
+    return new URL(s, document.baseURI).href;
+  } catch {
+    return s;
+  }
+}
+
+async function loadCssOnce(href: string): Promise<void> {
+  const url = resolveAssetUrl(href);
+  if (!url) return;
+
+  const esc = (globalThis as any).CSS?.escape ? (globalThis as any).CSS.escape(url) : url.replace(/"/g, '\\"');
+  const existing = document.querySelector(`link[rel="stylesheet"][href="${esc}"]`) as HTMLLinkElement | null;
+  if (existing) return;
+
+  await new Promise<void>((resolve) => {
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = url;
+    link.onload = () => resolve();
+    link.onerror = () => resolve();
+    document.head.appendChild(link);
+  });
+}
+
+async function loadTemplateAssets(templateConfig: TemplateConfig | null): Promise<void> {
+  const scripts = normalizeStringList(templateConfig?.assets?.scripts);
+  const styles = normalizeStringList(templateConfig?.assets?.styles);
+
+  for (const href of styles) {
+    await loadCssOnce(href);
+  }
+  for (const src of scripts) {
+    await loadScriptOnce(resolveAssetUrl(src));
+  }
 }
 
 async function loadScriptOnce(src: string, globalName?: string): Promise<void> {
@@ -487,8 +614,14 @@ async function loadScriptOnce(src: string, globalName?: string): Promise<void> {
     const s = document.createElement('script');
     s.src = src;
     s.async = false;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error('Failed to load script: ' + src));
+    s.onload = () => {
+      (s as any).__md2xLoaded = true;
+      resolve();
+    };
+    s.onerror = () => {
+      (s as any).__md2xLoaded = true;
+      reject(new Error('Failed to load script: ' + src));
+    };
     document.head.appendChild(s);
   });
 }
@@ -635,7 +768,19 @@ export class Md2xRenderer extends BaseRenderer {
       return await this.renderAsErrorPng(`Missing md2x template: ${templateRef || cfg.template}`, themeConfig);
     }
 
-    const injected = injectTemplateData(source, cfg.data);
+    const extracted = extractTemplateConfigFromHead(source);
+    if (cfg.allowTemplateAssets) {
+      if (extracted.error) {
+        return await this.renderAsErrorPng(`Invalid TemplateConfig JSON: ${extracted.error}`, themeConfig);
+      }
+      try {
+        await loadTemplateAssets(extracted.templateConfig);
+      } catch (e) {
+        return await this.renderAsErrorPng(`Failed to load TemplateConfig assets: ${(e as Error).message}`, themeConfig);
+      }
+    }
+
+    const injected = injectTemplateData(extracted.source, cfg.data);
     if (!cfg.allowScripts) {
       return await this.htmlRenderer.render(injected, themeConfig);
     }
@@ -685,6 +830,18 @@ export class Md2xRenderer extends BaseRenderer {
       return await this.renderAsErrorPng(`Missing md2x template: ${templateRef || cfg.template}`, themeConfig);
     }
 
+    const extracted = extractTemplateConfigFromHead(source);
+    if (cfg.allowTemplateAssets) {
+      if (extracted.error) {
+        return await this.renderAsErrorPng(`Invalid TemplateConfig JSON: ${extracted.error}`, themeConfig);
+      }
+      try {
+        await loadTemplateAssets(extracted.templateConfig);
+      } catch (e) {
+        return await this.renderAsErrorPng(`Failed to load TemplateConfig assets: ${(e as Error).message}`, themeConfig);
+      }
+    }
+
     let compilerMod: any;
     try {
       compilerMod = await this.ensureSvelteCompiler(cdn);
@@ -700,7 +857,7 @@ export class Md2xRenderer extends BaseRenderer {
       return await this.renderAsErrorPng('Svelte compiler not available (missing compile())', themeConfig);
     }
 
-    const patched = injectTemplateData(source, cfg.data);
+    const patched = injectTemplateData(extracted.source, cfg.data);
 
     let compiled: any;
     try {
@@ -799,10 +956,23 @@ export class Md2xRenderer extends BaseRenderer {
       return await this.renderAsErrorPng(`Missing md2x template: ${templateRef || cfg.template}`, themeConfig);
     }
 
+    const extracted = extractTemplateConfigFromHead(source);
+
     try {
       await this.ensureVueRuntime(cdn);
     } catch (e) {
       return await this.renderAsErrorPng(`Vue runtime unavailable: ${(e as Error).message}`, themeConfig);
+    }
+
+    if (cfg.allowTemplateAssets) {
+      if (extracted.error) {
+        return await this.renderAsErrorPng(`Invalid TemplateConfig JSON: ${extracted.error}`, themeConfig);
+      }
+      try {
+        await loadTemplateAssets(extracted.templateConfig);
+      } catch (e) {
+        return await this.renderAsErrorPng(`Failed to load TemplateConfig assets: ${(e as Error).message}`, themeConfig);
+      }
     }
 
     const Vue = (globalThis as any).Vue as VueGlobals | undefined;
@@ -812,7 +982,7 @@ export class Md2xRenderer extends BaseRenderer {
     }
 
     const styles: string[] = [];
-    const patchedSfc = injectTemplateData(source, cfg.data);
+    const patchedSfc = injectTemplateData(extracted.source, cfg.data);
 
     const sfcKey = templateRef || cfg.template;
     const options = {
