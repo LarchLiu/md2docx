@@ -2,7 +2,7 @@
 
 Markdown → PDF/DOCX/HTML/Image converter (local, no server). Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
 
-> Support MCP tools and md2x skill. 🎉
+> Supports MCP tools and md2x skill. 🎉
 
 [![npm version](https://img.shields.io/npm/v/md2x.svg?style=flat-square)](https://www.npmjs.com/package/md2x)
 
