@@ -1,10 +1,10 @@
-# md2x
+![md2x](./icons/big-logo.png)
 
-Markdown → PDF/DOCX/HTML/Image converter (local, no server). Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
+Markdown → PDF/DOCX/HTML/Image converter. Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
 
 > Supports MCP tools and md2x skill. 🎉
 
-[![npm version](https://img.shields.io/npm/v/md2x.svg?style=flat-square)](https://www.npmjs.com/package/md2x)
+<img src="./icons/logo.png" width="20"> [![npm version](https://img.shields.io/npm/v/md2x.svg?style=flat-square)](https://www.npmjs.com/package/md2x)
 
 ## CLI Usage
 

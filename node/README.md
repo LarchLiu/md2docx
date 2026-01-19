@@ -1,6 +1,6 @@
 # md2x
 
-Markdown → PDF/DOCX/HTML/Image converter (local, no server). Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
+Markdown → PDF/DOCX/HTML/Image converter. Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
 
 > Supports MCP tools and md2x skill. 🎉
 
