@@ -1,6 +1,6 @@
 # md2x
 
-Markdown → PDF/DOCX/HTML/Image converter (local, no server). Supports Mermaid/Graphviz/Infographic/Vega/HTML/SVG rendering, math, and code highlighting.
+Markdown → PDF/DOCX/HTML/Image converter (local, no server). Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
 
 [![npm version](https://img.shields.io/npm/v/md2x.svg?style=flat-square)](https://www.npmjs.com/package/md2x)
 
@@ -81,6 +81,11 @@ baseTag: true       # emit <base href="file://.../"> for resolving relative path
 diagramMode: live   # img | live | none
 cdn:                # optional: override CDN URLs (used when diagramMode: live)
   mermaid: "https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js"
+  # Template blocks:
+  vue: "https://unpkg.com/vue@3/dist/vue.global.js"
+  vueSfcLoader: "https://cdn.jsdelivr.net/npm/vue3-sfc-loader/dist/vue3-sfc-loader.js"
+  svelteCompiler: "https://esm.sh/svelte@5/compiler"
+  svelteBase: "https://esm.sh/svelte@5/"
 ---
 ```
 
@@ -122,8 +127,8 @@ Besides diagram blocks (mermaid/dot/vega-lite/infographic), `md2x` also supports
 ````md
 ```md2x
 {
-  type: 'vue',          // "vue" | "html"
-  template: 'example.vue',
+  type: 'vue',          // "vue" | "html" | "svelte"
+  template: 'example.vue', // or "example.html" / "example.svelte"
   data: [{ title: 't', message: 'm' }]
 }
 ```
@@ -150,9 +155,28 @@ const data = templateData;
 </style>
 ```
 
+```svelte
+<!-- example.svelte (Svelte 5) -->
+<script>
+  const data = templateData;
+</script>
+
+<div class="my-component">Hello md2x! This is svelte template</div>
+{#each data as item, index}
+  <div>
+    <h2>{item.title}</h2>
+    <p>{item.message}</p>
+  </div>
+{/each}
+
+<style>
+  .my-component { color: red; }
+</style>
+```
+
 ### Config Fields
 
-- `type`: `"vue"` or `"html"`
+- `type`: `"vue"`, `"html"`, or `"svelte"` (Svelte 5)
 - `template`: template file name/path
   - if you only pass a filename (e.g. `example.vue`), it is treated as `${type}/${template}` (e.g. `vue/example.vue`)
 - `data`: arbitrary JSON-serializable data (injected by replacing the `templateData` placeholder)
@@ -160,12 +184,30 @@ const data = templateData;
   - not supported: `<script type="module">`
   - external `<script src="...">` is not supported for image rendering (use inline scripts)
 
+### Svelte Notes (Svelte 5 + esm.sh)
+
+- Svelte templates are compiled at runtime using the Svelte compiler, loaded from **esm.sh** via `import()`.
+- This means Svelte template rendering requires network access (even in `diagramMode: "img"`), unless you override `cdn.svelteCompiler`/`cdn.svelteBase` to another ESM CDN that works in your environment.
+- Templates are expected to be self-contained `.svelte` files (no preprocessors like TypeScript/Sass, and avoid local relative imports unless you provide an ESM-resolvable URL).
+
 ### Template Resolution (External Templates)
 
 To load templates from outside the built-in `dist/templates`, use either:
 
 - CLI: `--templates-dir /path/to/templates` (repeatable)
 - Front matter: `templatesDir: /path/to/templates` (string or list)
+
+### CDN Overrides (Live Mode)
+
+When exporting **HTML/Image** with `diagramMode: live`, you can override CDN URLs in front matter:
+
+```yaml
+cdn:
+  vue: "https://unpkg.com/vue@3/dist/vue.global.js"
+  vueSfcLoader: "https://cdn.jsdelivr.net/npm/vue3-sfc-loader/dist/vue3-sfc-loader.js"
+  svelteCompiler: "https://esm.sh/svelte@5/compiler"
+  svelteBase: "https://esm.sh/svelte@5/"
+```
 
 
 ## Usage
@@ -214,6 +256,22 @@ npx md2x -h
 ## MCP server (Model Context Protocol)
 
 This repo includes an Express-based MCP server that exposes `md2x` as MCP tools over HTTP, so MCP clients can convert Markdown and download the generated HTML/PDF/DOCX from `/resources`.
+
+## md2x Skill
+
+This repo also includes a skill for driving `md2x` from an agent:
+
+- Skill: `skills/md2x/SKILL.md`
+- What it does: guides an agent to run `npx md2x ...`, pick formats/themes, and use front matter correctly.
+- Install (example):
+
+```bash
+npx skills add larchliu/md2x
+
+or
+
+npx add-skill larchliu/md2x
+```
 
 Run:
 

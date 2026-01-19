@@ -20,7 +20,7 @@ import type { PluginRenderer, RendererThemeConfig } from '../../../src/types/ind
 
 export interface Md2xTemplateConfig {
   template: string;
-  type: 'vue' | 'html';
+  type: 'vue' | 'html' | 'svelte';
   data: any;
 }
 
@@ -100,6 +100,16 @@ export type Md2HtmlOptions = Md2xBaseOptions & {
     vue: string;
     /** vue3-sfc-loader UMD (required for md2x vue templates in live mode) */
     vueSfcLoader: string;
+    /**
+     * ESM URL that exports `compile` (e.g. `svelte/compiler` build).
+     * Used for md2x Svelte templates in live mode.
+     */
+    svelteCompiler: string;
+    /**
+     * Base URL used to resolve runtime module imports (e.g. `svelte/internal`, `svelte/store`).
+     * Example: "https://esm.sh/svelte@5/".
+     */
+    svelteBase: string;
   }>;
   /** When true, emit a `<base href="file://.../">` tag so relative URLs resolve against basePath (default: true) */
   baseTag?: boolean;
@@ -149,6 +159,8 @@ function createPluginRenderer(
               cdn: {
                 vue: cdnOverrides?.vue,
                 vueSfcLoader: cdnOverrides?.vueSfcLoader,
+                svelteCompiler: cdnOverrides?.svelteCompiler,
+                svelteBase: cdnOverrides?.svelteBase,
               },
             } as any)
           : content;
@@ -452,6 +464,8 @@ async function processDiagrams(
               cdn: {
                 vue: cdnOverrides?.vue,
                 vueSfcLoader: cdnOverrides?.vueSfcLoader,
+                svelteCompiler: cdnOverrides?.svelteCompiler,
+                svelteBase: cdnOverrides?.svelteBase,
               },
             } as any)
           : decodedCode;
@@ -579,8 +593,8 @@ function buildLiveDiagramBootstrap(
   // Prevent `</script>` inside embedded JSON (e.g., Vue SFC source) from terminating the bootstrap script tag.
   const jsonForInlineScript = (value: unknown): string => JSON.stringify(value).replace(/</g, '\\u003c');
 
-  const cdnBaseDefaults = {
-    mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js',
+    const cdnBaseDefaults = {
+      mermaid: 'https://cdn.jsdelivr.net/npm/mermaid@11.12.2/dist/mermaid.min.js',
     // Preferred: modern Graphviz WASM build (provides window.Viz.instance()).
     vizGlobal: 'https://cdn.jsdelivr.net/npm/@viz-js/viz@3.24.0/dist/viz-global.js',
     // Legacy fallback (provides window.Viz constructor).
@@ -590,6 +604,11 @@ function buildLiveDiagramBootstrap(
     // For md2x template blocks (Vue SFC).
     vue: 'https://unpkg.com/vue@3/dist/vue.global.js',
     vueSfcLoader: 'https://cdn.jsdelivr.net/npm/vue3-sfc-loader/dist/vue3-sfc-loader.js',
+    // For md2x template blocks (Svelte 5).
+    // NOTE: We intentionally use esm.sh so the compiler (and its dependencies) can load in browsers via `import()`.
+    svelteCompiler: 'https://esm.sh/svelte@5/compiler',
+    // Runtime module base (used to rewrite bare imports like "svelte/internal/client").
+    svelteBase: 'https://esm.sh/svelte@5/',
   } as const;
 
   const cdnVegaDefaultsByMajor = {
@@ -629,6 +648,79 @@ function buildLiveDiagramBootstrap(
         s.onerror = () => reject(new Error('Failed to load script: ' + src));
         document.head.appendChild(s);
       });
+    }
+
+    let __md2xSvelteCompilerPromise = null;
+
+    function getCdnValue(key) {
+      try {
+        if (cdnOverrides && Object.prototype.hasOwnProperty.call(cdnOverrides, key) && cdnOverrides[key]) return cdnOverrides[key];
+      } catch {}
+      return cdnBaseDefaults[key];
+    }
+
+    function normalizeUrlBase(base) {
+      const b = String(base || '').trim();
+      if (!b) return b;
+      return b.endsWith('/') ? b : (b + '/');
+    }
+
+    function normalizePkgEntryUrl(base) {
+      const b = String(base || '').trim();
+      if (!b) return b;
+      return b.endsWith('/') ? b.slice(0, -1) : b;
+    }
+
+    function rewriteSvelteModuleSpecifiers(code, svelteBase) {
+      const base = normalizeUrlBase(svelteBase);
+      if (!base) return String(code || '');
+
+      const resolve = (p) => {
+        try { return new URL(p, base).href; } catch { return base + p; }
+      };
+
+      const isEsmSh = base.indexOf('esm.sh/') !== -1;
+      const entry = normalizePkgEntryUrl(base);
+
+      const map = {
+        // Svelte 5 runtime imports:
+        'svelte': isEsmSh ? entry : resolve('src/runtime/index.js'),
+        'svelte/internal': isEsmSh ? resolve('internal') : resolve('src/runtime/internal/index.js'),
+        'svelte/internal/client': isEsmSh ? resolve('internal/client') : resolve('src/runtime/internal/client/index.js'),
+        'svelte/internal/server': isEsmSh ? resolve('internal/server') : resolve('src/runtime/internal/server/index.js'),
+        'svelte/internal/disclose-version': isEsmSh
+          ? resolve('internal/disclose-version')
+          : resolve('src/runtime/internal/disclose-version/index.js'),
+        'svelte/store': isEsmSh ? resolve('store') : resolve('src/runtime/store/index.js'),
+        'svelte/animate': isEsmSh ? resolve('animate') : resolve('src/runtime/animate/index.js'),
+        'svelte/easing': isEsmSh ? resolve('easing') : resolve('src/runtime/easing/index.js'),
+        'svelte/motion': isEsmSh ? resolve('motion') : resolve('src/runtime/motion/index.js'),
+        'svelte/transition': isEsmSh ? resolve('transition') : resolve('src/runtime/transition/index.js'),
+      };
+
+      let out = String(code || '');
+      for (const k in map) {
+        const v = map[k];
+        out = out.split("'" + k + "'").join("'" + v + "'");
+        out = out.split('"' + k + '"').join('"' + v + '"');
+      }
+
+      // Catch-all for any remaining Svelte subpath imports like:
+      //   "svelte/internal/flags/legacy"
+      //   "svelte/internal/client"
+      // We only support esm.sh, so rewrite bare "svelte/<...>" to absolute URLs.
+      if (isEsmSh && entry) {
+        out = out.split("'svelte/").join("'" + entry + '/');
+        out = out.split('"svelte/').join('"' + entry + '/');
+      }
+      return out;
+    }
+
+    async function loadSvelteCompilerModule() {
+      if (__md2xSvelteCompilerPromise) return __md2xSvelteCompilerPromise;
+      const url = getCdnValue('svelteCompiler');
+      __md2xSvelteCompilerPromise = import(url);
+      return __md2xSvelteCompilerPromise;
     }
 
     function getLangFromCodeClass(codeEl) {
@@ -738,6 +830,7 @@ function buildLiveDiagramBootstrap(
         infographic: false,
         md2xVue: false,
         md2xHtml: false,
+        md2xSvelte: false,
       };
 
       for (const codeEl of blocks) {
@@ -754,6 +847,7 @@ function buildLiveDiagramBootstrap(
           const cfg = parseMd2xConfig(text);
           if (cfg && cfg.type === 'vue') out.md2xVue = true;
           if (cfg && cfg.type === 'html') out.md2xHtml = true;
+          if (cfg && cfg.type === 'svelte') out.md2xSvelte = true;
         }
       }
 
@@ -798,6 +892,12 @@ function buildLiveDiagramBootstrap(
         try {
           await loadScript(cdn.vue);
           await loadScript(cdn.vueSfcLoader);
+        } catch {}
+      }
+      if (kinds.md2xSvelte) {
+        try {
+          // Warm up the compiler module so rendering multiple blocks is faster.
+          await import(cdn.svelteCompiler);
         } catch {}
       }
     }
@@ -966,7 +1066,7 @@ function buildLiveDiagramBootstrap(
       const type = (cfg.type != null) ? String(cfg.type).toLowerCase() : '';
       const template = (cfg.template != null) ? String(cfg.template) : '';
       const data = cfg.data;
-      if (type !== 'vue' && type !== 'html') return null;
+      if (type !== 'vue' && type !== 'html' && type !== 'svelte') return null;
       if (!template) return null;
       return { type, template, data };
     }
@@ -1132,6 +1232,122 @@ function buildLiveDiagramBootstrap(
       } catch {}
     }
 
+    async function renderMd2xSvelte(cfg, mount) {
+      const templateRef = normalizeMd2xTemplateRef(cfg.type, cfg.template);
+      const rootHref = resolveHref(templateRef, baseHref || undefined);
+      const rootSource = md2xTemplateFiles[rootHref] || md2xTemplateFiles[templateRef] || md2xTemplateFiles[cfg.template];
+      if (typeof rootSource !== 'string' || !rootSource) {
+        mount.textContent = 'Missing md2x svelte template: ' + templateRef;
+        return;
+      }
+
+      const json = (() => {
+        try {
+          const j = JSON.stringify(cfg.data ?? null);
+          // IMPORTANT: avoid including the literal closing script tag sequence in this bootstrap source code.
+          return j.split('</').join('<\\/');
+        } catch {
+          return 'null';
+        }
+      })();
+      const patchedSource = rootSource.split('templateData').join('(' + json + ')');
+
+      let compilerMod;
+      try {
+        compilerMod = await loadSvelteCompilerModule();
+      } catch (e) {
+        mount.textContent = 'Svelte compiler unavailable: ' + ((e && e.message) ? e.message : String(e));
+        return;
+      }
+
+      const compile =
+        (compilerMod && compilerMod.compile) ||
+        (compilerMod && compilerMod.default && compilerMod.default.compile);
+      if (typeof compile !== 'function') {
+        mount.textContent = 'Svelte compiler not available (missing compile()).';
+        return;
+      }
+
+      let compiled;
+      try {
+        // Svelte 5 uses generate: "client" (Svelte 4 used generate: "dom"). We only support Svelte 5 here,
+        // but keep a fallback for older compiler builds.
+        try {
+          compiled = compile(patchedSource, { filename: rootHref || templateRef || 'md2x.svelte', generate: 'client' });
+        } catch {
+          compiled = compile(patchedSource, { filename: rootHref || templateRef || 'md2x.svelte', generate: 'dom' });
+        }
+      } catch (e) {
+        mount.textContent = 'Failed to compile Svelte template: ' + cfg.template;
+        return;
+      }
+
+      const jsCode = compiled && compiled.js && compiled.js.code ? String(compiled.js.code) : '';
+      const cssCode = compiled && compiled.css && compiled.css.code ? String(compiled.css.code) : '';
+      if (!jsCode.trim()) {
+        mount.textContent = 'Svelte compile returned no JS output.';
+        return;
+      }
+
+      const svelteBase = getCdnValue('svelteBase');
+      const moduleCode = rewriteSvelteModuleSpecifiers(jsCode, svelteBase);
+
+      let blobUrl = '';
+      try {
+        blobUrl = URL.createObjectURL(new Blob([moduleCode], { type: 'text/javascript' }));
+      } catch (e) {
+        mount.textContent = 'Unable to create Blob URL for Svelte module.';
+        return;
+      }
+
+      try {
+        let mod;
+        try {
+          mod = await import(blobUrl);
+        } catch (e) {
+          mount.textContent = 'Failed to load compiled Svelte module: ' + ((e && e.message) ? e.message : String(e));
+          return;
+        }
+
+        const Comp = mod && mod.default;
+        if (typeof Comp !== 'function') {
+          mount.textContent = 'Compiled Svelte module has no default component export.';
+          return;
+        }
+
+        const svelteEntry = normalizePkgEntryUrl(svelteBase);
+        let runtime;
+        try {
+          runtime = await import(svelteEntry);
+        } catch (e) {
+          mount.textContent = 'Failed to load Svelte runtime: ' + ((e && e.message) ? e.message : String(e));
+          return;
+        }
+
+        const mountFn = runtime && runtime.mount;
+        if (typeof mountFn !== 'function') {
+          mount.textContent = 'Svelte runtime mount() not available.';
+          return;
+        }
+
+        if (cssCode && cssCode.trim()) {
+          const style = document.createElement('style');
+          style.textContent = cssCode;
+          mount.appendChild(style);
+        }
+
+        try {
+          // NOTE: keep mounted for printing/PDF.
+          mountFn(Comp, { target: mount });
+        } catch (e) {
+          mount.textContent = 'Failed to mount Svelte component: ' + ((e && e.message) ? e.message : String(e));
+          return;
+        }
+      } finally {
+        try { URL.revokeObjectURL(blobUrl); } catch {}
+      }
+    }
+
     async function main() {
       try {
         if (baseHref) {
@@ -1182,6 +1398,8 @@ function buildLiveDiagramBootstrap(
               await renderMd2xVue(cfg, mount);
             } else if (cfg.type === 'html') {
               await renderMd2xHtml(cfg, mount);
+            } else if (cfg.type === 'svelte') {
+              await renderMd2xSvelte(cfg, mount);
             }
           }
         } catch {}

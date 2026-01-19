@@ -4,6 +4,7 @@ image:
   selector:
     - '.md2x-diagram[data-md2x-diagram-kind="md2x-vue"]'
     - '.md2x-diagram[data-md2x-diagram-kind="md2x-html"]'
+    - '.md2x-diagram[data-md2x-diagram-kind="md2x-svelte"]'
   selectorMode: stitch
 ---
 
@@ -17,6 +18,22 @@ image:
     }, {
     title: 'vue3-sfc-loader',
     message: 'This is a message from vue3-sfc-loader!'
+  }]
+}
+```
+
+---
+
+```md2x
+{
+  type: 'svelte',
+  template: 'example.svelte',
+  data: [{
+    title: 'hello word',
+    message: 'This is a message from md2x!'
+    }, {
+    title: 'svelte compiler',
+    message: 'This is a message from svelte compiler!'
   }]
 }
 ```

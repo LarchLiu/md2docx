@@ -12,6 +12,7 @@
  *
  * Notes:
  * - Vue templates use runtime Vue + vue3-sfc-loader in the render worker page.
+ * - Svelte templates use the Svelte compiler (loaded via CDN) to compile `.svelte` source at runtime.
  * - Template files must be provided by the host (Node) to avoid file:// fetch/CORS issues.
  */
 
@@ -19,7 +20,7 @@ import { BaseRenderer } from './base-renderer';
 import { HtmlRenderer } from './html-renderer';
 import type { RendererThemeConfig, RenderResult } from '../types/index';
 
-export type Md2xTemplateType = 'vue' | 'html';
+export type Md2xTemplateType = 'vue' | 'html' | 'svelte';
 
 export type Md2xTemplateConfig = {
   type: Md2xTemplateType;
@@ -57,6 +58,16 @@ export type Md2xRenderInput =
       cdn?: {
         vue?: string;
         vueSfcLoader?: string;
+        /**
+         * ESM URL that exports `compile` (e.g. a `svelte/compiler` build).
+         * Used for md2x Svelte templates.
+         */
+        svelteCompiler?: string;
+        /**
+         * Base URL for resolving Svelte runtime module imports (e.g. `svelte/internal`, `svelte/store`).
+         * Example: "https://esm.sh/svelte@5/".
+         */
+        svelteBase?: string;
       };
     };
 
@@ -69,6 +80,66 @@ type VueGlobals = {
 type VueSfcLoaderGlobals = {
   loadModule: (path: string, options: any) => Promise<any>;
 };
+
+async function dynamicImport(url: string): Promise<any> {
+  // Keep the import truly dynamic so bundlers don't try to resolve CDN URLs at build time.
+  return await import(/* @vite-ignore */ url);
+}
+
+function normalizeUrlBase(base: string): string {
+  const b = String(base || '').trim();
+  if (!b) return b;
+  return b.endsWith('/') ? b : `${b}/`;
+}
+
+function normalizePkgEntryUrl(base: string): string {
+  const b = String(base || '').trim();
+  if (!b) return b;
+  return b.endsWith('/') ? b.slice(0, -1) : b;
+}
+
+function rewriteSvelteModuleSpecifiers(code: string, svelteBase: string): string {
+  const base = normalizeUrlBase(svelteBase);
+  if (!base) return code;
+
+  const resolve = (p: string): string => {
+    try {
+      return new URL(p, base).href;
+    } catch {
+      return base + p;
+    }
+  };
+
+  const isEsmSh = base.includes('esm.sh/');
+  const entry = normalizePkgEntryUrl(base);
+  const map: Record<string, string> = {
+    'svelte': isEsmSh ? entry : resolve('src/runtime/index.js'),
+    'svelte/internal': isEsmSh ? resolve('internal') : resolve('src/runtime/internal/index.js'),
+    'svelte/internal/client': isEsmSh ? resolve('internal/client') : resolve('src/runtime/internal/client/index.js'),
+    'svelte/internal/server': isEsmSh ? resolve('internal/server') : resolve('src/runtime/internal/server/index.js'),
+    'svelte/internal/disclose-version': isEsmSh
+      ? resolve('internal/disclose-version')
+      : resolve('src/runtime/internal/disclose-version/index.js'),
+    'svelte/store': isEsmSh ? resolve('store') : resolve('src/runtime/store/index.js'),
+    'svelte/animate': isEsmSh ? resolve('animate') : resolve('src/runtime/animate/index.js'),
+    'svelte/easing': isEsmSh ? resolve('easing') : resolve('src/runtime/easing/index.js'),
+    'svelte/motion': isEsmSh ? resolve('motion') : resolve('src/runtime/motion/index.js'),
+    'svelte/transition': isEsmSh ? resolve('transition') : resolve('src/runtime/transition/index.js'),
+  };
+
+  let out = String(code || '');
+  for (const [from, to] of Object.entries(map)) {
+    out = out.split(`'${from}'`).join(`'${to}'`);
+    out = out.split(`"${from}"`).join(`"${to}"`);
+  }
+
+  // Catch-all for any remaining Svelte subpath imports (Svelte 5 has many internal flags subpaths).
+  if (isEsmSh && entry) {
+    out = out.split(`'svelte/`).join(`'${entry}/`);
+    out = out.split(`"svelte/`).join(`"${entry}/`);
+  }
+  return out;
+}
 
 export function normalizeMd2xTemplateRef(type: string, tpl: string): string {
   const t = String(type || '').trim().toLowerCase();
@@ -345,7 +416,9 @@ export function parseMd2xTemplateConfig(rawCode: string): Md2xTemplateConfig {
     if (!isObject(parsed)) throw new Error('md2x config must be an object');
     const type = String(parsed.type || '').trim() as Md2xTemplateType;
     const template = String(parsed.template || '').trim();
-    if (!type || (type !== 'vue' && type !== 'html')) throw new Error('md2x.type must be "vue" or "html"');
+    if (!type || (type !== 'vue' && type !== 'html' && type !== 'svelte')) {
+      throw new Error('md2x.type must be "vue", "html", or "svelte"');
+    }
     if (!template) throw new Error('md2x.template is required');
     const allowScripts = typeof (parsed as any).allowScripts === 'boolean' ? (parsed as any).allowScripts : undefined;
     return { type, template, data: (parsed as any).data, allowScripts };
@@ -371,7 +444,9 @@ export function parseMd2xTemplateConfig(rawCode: string): Md2xTemplateConfig {
 
   const type = String((parsed as any).type || '').trim() as Md2xTemplateType;
   const template = String((parsed as any).template || '').trim();
-  if (!type || (type !== 'vue' && type !== 'html')) throw new Error('md2x.type must be "vue" or "html"');
+  if (!type || (type !== 'vue' && type !== 'html' && type !== 'svelte')) {
+    throw new Error('md2x.type must be "vue", "html", or "svelte"');
+  }
   if (!template) throw new Error('md2x.template is required');
 
   const allowScripts = typeof (parsed as any).allowScripts === 'boolean' ? (parsed as any).allowScripts : undefined;
@@ -421,6 +496,7 @@ async function loadScriptOnce(src: string, globalName?: string): Promise<void> {
 export class Md2xRenderer extends BaseRenderer {
   private htmlRenderer = new HtmlRenderer();
   private vueReady: Promise<void> | null = null;
+  private svelteCompilerReady: Promise<any> | null = null;
 
   constructor() {
     super('md2x');
@@ -466,6 +542,19 @@ export class Md2xRenderer extends BaseRenderer {
     })();
 
     return this.vueReady;
+  }
+
+  private async ensureSvelteCompiler(cdn?: { svelteCompiler?: string }): Promise<any> {
+    if (this.svelteCompilerReady) return this.svelteCompilerReady;
+
+    const compilerSrc =
+      cdn?.svelteCompiler || 'https://esm.sh/svelte@5/compiler';
+
+    this.svelteCompilerReady = (async () => {
+      return await dynamicImport(compilerSrc);
+    })();
+
+    return this.svelteCompilerReady;
   }
 
   private async renderAsErrorPng(message: string, themeConfig: RendererThemeConfig | null): Promise<RenderResult | null> {
@@ -585,6 +674,120 @@ export class Md2xRenderer extends BaseRenderer {
     }
   }
 
+  private async renderSvelteTemplate(
+    cfg: Md2xTemplateConfig,
+    templateFiles: Record<string, string> | undefined,
+    cdn: { svelteCompiler?: string; svelteBase?: string } | undefined,
+    themeConfig: RendererThemeConfig | null
+  ): Promise<RenderResult | null> {
+    const { templateRef, source } = this.getTemplateSource(templateFiles, cfg.type, cfg.template);
+    if (!source) {
+      return await this.renderAsErrorPng(`Missing md2x template: ${templateRef || cfg.template}`, themeConfig);
+    }
+
+    let compilerMod: any;
+    try {
+      compilerMod = await this.ensureSvelteCompiler(cdn);
+    } catch (e) {
+      return await this.renderAsErrorPng(`Svelte compiler unavailable: ${(e as Error).message}`, themeConfig);
+    }
+
+    const compileFn =
+      (compilerMod as any)?.compile ||
+      (compilerMod as any)?.default?.compile ||
+      (compilerMod as any)?.svelte?.compile;
+    if (typeof compileFn !== 'function') {
+      return await this.renderAsErrorPng('Svelte compiler not available (missing compile())', themeConfig);
+    }
+
+    const patched = injectTemplateData(source, cfg.data);
+
+    let compiled: any;
+    try {
+      try {
+        compiled = compileFn(patched, {
+          filename: templateRef || cfg.template || 'md2x.svelte',
+          generate: 'client',
+        });
+      } catch {
+        compiled = compileFn(patched, {
+          filename: templateRef || cfg.template || 'md2x.svelte',
+          generate: 'dom',
+        });
+      }
+    } catch (e) {
+      return await this.renderAsErrorPng(`Failed to compile Svelte template: ${(e as Error).message}`, themeConfig);
+    }
+
+    const jsCode = String(compiled?.js?.code || '');
+    const cssCode = String(compiled?.css?.code || '');
+    if (!jsCode.trim()) {
+      return await this.renderAsErrorPng('Svelte compile returned no JS output', themeConfig);
+    }
+
+    const svelteBase = cdn?.svelteBase || 'https://esm.sh/svelte@5/';
+    const moduleCode = rewriteSvelteModuleSpecifiers(jsCode, svelteBase);
+
+    const container = this.createContainer();
+    container.style.cssText =
+      'position: absolute; left: -9999px; top: -9999px; display: inline-block; background: transparent; padding: 0; margin: 0;';
+    const mount = document.createElement('div');
+    mount.style.cssText = 'display: inline-block;';
+    container.appendChild(mount);
+
+    let instance: any = null;
+    let unmountFn: ((inst: any) => void) | null = null;
+    let blobUrl: string | null = null;
+    try {
+      try {
+        blobUrl = URL.createObjectURL(new Blob([moduleCode], { type: 'text/javascript' }));
+      } catch (e) {
+        throw new Error('Unable to create Blob URL for compiled Svelte module: ' + (e as Error).message);
+      }
+
+      const mod = await dynamicImport(blobUrl);
+      const Comp = (mod as any)?.default;
+      if (typeof Comp !== 'function') {
+        throw new Error('Compiled Svelte module has no default component export');
+      }
+
+      const runtime = await dynamicImport(normalizePkgEntryUrl(svelteBase));
+      const mountFn = (runtime as any)?.mount;
+      unmountFn = typeof (runtime as any)?.unmount === 'function' ? (runtime as any).unmount : null;
+      if (typeof mountFn !== 'function') {
+        throw new Error('Svelte runtime mount() not available');
+      }
+      instance = mountFn(Comp, { target: mount });
+
+      try {
+        if (typeof (globalThis as any).requestAnimationFrame === 'function') {
+          await new Promise<void>((resolve) => (globalThis as any).requestAnimationFrame(() => resolve()));
+        }
+      } catch {}
+      try {
+        if ((document as any).fonts?.ready) {
+          await (document as any).fonts.ready;
+        }
+      } catch {}
+
+      const styleHtml = cssCode.trim() ? `<style>${cssCode}</style>` : '';
+      const renderedHtml = styleHtml + mount.innerHTML;
+      return await this.htmlRenderer.render(renderedHtml, themeConfig);
+    } catch (e) {
+      return await this.renderAsErrorPng(`Failed to render Svelte template: ${(e as Error).message}`, themeConfig);
+    } finally {
+      try {
+        if (instance && unmountFn) {
+          unmountFn(instance);
+        }
+      } catch {}
+      try {
+        if (blobUrl) URL.revokeObjectURL(blobUrl);
+      } catch {}
+      this.removeContainer(container);
+    }
+  }
+
   private async renderVueTemplate(
     cfg: Md2xTemplateConfig,
     templateFiles: Record<string, string> | undefined,
@@ -684,6 +887,9 @@ export class Md2xRenderer extends BaseRenderer {
     }
     if (cfg.type === 'vue') {
       return await this.renderVueTemplate(cfg, templateFiles, cdn, themeConfig);
+    }
+    if (cfg.type === 'svelte') {
+      return await this.renderSvelteTemplate(cfg, templateFiles, cdn, themeConfig);
     }
 
     return await this.renderAsErrorPng(`Unsupported md2x type: ${(cfg as any).type}`, themeConfig);
