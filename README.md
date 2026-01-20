@@ -1,10 +1,15 @@
 ![md2x](./icons/big-logo.png)
 
-Markdown → PDF/DOCX/HTML/Image converter. Supports Mermaid/Graphviz/Infographic/Vega/Template(vue/svelte/html) rendering, math, and code highlighting.
-
-> Supports MCP tools and md2x skill. 🎉
+<h3 align="center">Markdown → PDF/DOCX/HTML/Image converter.</h3>
 
 <img src="./icons/logo.png" width="20"> [![npm version](https://img.shields.io/npm/v/md2x.svg?style=flat-square)](https://www.npmjs.com/package/md2x)
+
+## Features
+
+- 📦 **Supported formats**: `pdf`, `docx`, `html`, `png`, `jpg/jpeg`, `webp`
+- 🔌 **MCP (Model Context Protocol)**: run `mcp/` server to expose Markdown conversion as MCP tools
+- 🧠 **Skills**: includes an agent skill at `skills/md2x/SKILL.md` for repeatable conversions/workflows
+- 🧩 **Custom templates**: render `md2x` blocks with **Vue SFC** (`.vue`) and **Svelte 5** (`.svelte`) templates (plus plain HTML)
 
 ## CLI Usage
 
