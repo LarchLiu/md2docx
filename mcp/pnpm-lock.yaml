@@ -15,8 +15,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       md2x:
-        specifier: ~0.7.3
-        version: 0.7.3
+        specifier: ~0.7.4
+        version: 0.7.4
       zod:
         specifier: ^4.3.5
         version: 4.3.5
@@ -507,8 +507,8 @@ packages:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
 
-  md2x@0.7.3:
-    resolution: {integrity: sha512-rILPpp+IHE3Vsd67OPfTeRyoiGiBg/BiQi9X9jV6mLvGt+TGYElTF6kKIkZh6tNsXByGnFQvdax6tjR4hYezEA==}
+  md2x@0.7.4:
+    resolution: {integrity: sha512-ei1O6y/K2yxYZCt4oiW4CL1JgwMm4BhBeFNMe1HyPv8xo18Oz4p9no6CdGHbOQFH2bDOO1fCmdhRQ2n8hokyxQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -1315,7 +1315,7 @@ snapshots:
 
   math-intrinsics@1.1.0: {}
 
-  md2x@0.7.3:
+  md2x@0.7.4:
     dependencies:
       js-yaml: 4.1.1
       puppeteer: 24.35.0
