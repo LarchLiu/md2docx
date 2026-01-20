@@ -355,6 +355,26 @@
     "message": "Đặt lại",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Phân biệt chữ hoa/thường",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Sau",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Tìm kiếm",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Trước",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Toàn bộ từ",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Tự động làm mới",
     "description": "Label for auto refresh checkbox"

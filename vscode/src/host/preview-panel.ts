@@ -943,6 +943,11 @@ export class MarkdownPreviewPanel {
       vscode.Uri.joinPath(this._extensionUri, 'webview', 'settings-panel.css')
     );
 
+    // Search panel styles
+    const searchStyleUri = webview.asWebviewUri(
+      vscode.Uri.joinPath(this._extensionUri, 'webview', 'search-panel.css')
+    );
+
     const nonce = getNonce();
     const config = this._getConfiguration();
 
@@ -955,6 +960,7 @@ export class MarkdownPreviewPanel {
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}' 'unsafe-eval'; img-src ${webview.cspSource} data: https: blob:; font-src ${webview.cspSource} data:; frame-src ${webview.cspSource} blob:; connect-src ${webview.cspSource};">
   <link rel="stylesheet" href="${styleUri}">
   <link rel="stylesheet" href="${settingsStyleUri}">
+  <link rel="stylesheet" href="${searchStyleUri}">
   <title>Markdown Preview</title>
   <style>
     /* Hide Chrome extension specific UI elements */

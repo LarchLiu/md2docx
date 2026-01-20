@@ -355,6 +355,26 @@
     "message": "재설정",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "대소문자 구분",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "다음",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "검색",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "이전",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "단어 전체",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "자동 새로고침",
     "description": "Label for auto refresh checkbox"

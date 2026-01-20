@@ -355,6 +355,26 @@
     "message": "Скинути",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "З урахуванням регістру",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Наступний",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Пошук",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Попередній",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Слово повністю",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Автооновлення",
     "description": "Label for auto refresh checkbox"

@@ -355,6 +355,26 @@
     "message": "Restablecer",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Coincidir mayúsculas",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Siguiente",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Buscar",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Anterior",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Palabra completa",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Actualización automática",
     "description": "Label for auto refresh checkbox"

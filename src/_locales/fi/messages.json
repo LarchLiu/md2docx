@@ -355,6 +355,26 @@
     "message": "Palauta",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Kirjainkoko",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Seuraava",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Etsi",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Edellinen",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Koko sana",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Automaattinen päivitys",
     "description": "Label for auto refresh checkbox"

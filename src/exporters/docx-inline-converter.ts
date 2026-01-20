@@ -354,6 +354,7 @@ export function createInlineConverter({
    * @returns DOCX element(s) or null
    */
   async function convertInlineNode(node: InlineNode, parentStyle: ParentStyle = {}): Promise<InlineResult | InlineResult[] | null> {
+    console.log('[DOCX] convertInlineNode:', node.type);
     switch (node.type) {
       case 'text':
         return convertTextWithEmoji(node.value, parentStyle);
@@ -419,9 +420,18 @@ export function createInlineConverter({
    * @param parentStyle - Parent style
    * @returns DOCX ExternalHyperlink
    */
-  async function convertLink(node: LinkNode, parentStyle: ParentStyle): Promise<ExternalHyperlink> {
-    const text = extractText(node);
+  async function convertLink(node: LinkNode, parentStyle: ParentStyle): Promise<ExternalHyperlink | ImageRun | TextRun> {
     const url = node.url || '#';
+
+    // Check if link contains an image (e.g., [![alt](img-url)](link-url))
+    const imageChild = node.children?.find((child: InlineNode) => child.type === 'image') as ImageNode | undefined;
+    if (imageChild) {
+      // For image links, just render the image (DOCX doesn't support clickable images well)
+      console.log('[DOCX] Link contains image, converting image child:', imageChild.url);
+      return await convertImage(imageChild);
+    }
+
+    const text = extractText(node);
 
     const linkStyle = {
       style: 'Hyperlink' as const,
@@ -473,24 +483,32 @@ export function createInlineConverter({
    * @returns DOCX ImageRun or error TextRun
    */
   async function convertImage(node: ImageNode): Promise<ImageRun | TextRun> {
+    console.log('[DOCX] convertImage called:', { url: node.url, alt: node.alt });
     try {
       // Check if image is SVG (by URL)
-      if (isSvgImage(node.url)) {
+      const isSvg = isSvgImage(node.url);
+      console.log('[DOCX] isSvgImage check:', { url: node.url, isSvg });
+      if (isSvg) {
         return await convertSvgImageFromUrl(node.url, node.alt);
       }
 
       // Fetch image as buffer
+      console.log('[DOCX] Fetching image as buffer:', node.url);
       const { buffer, contentType } = await fetchImageAsBuffer(node.url);
+      console.log('[DOCX] Fetched image:', { url: node.url, contentType, bufferLength: buffer.length });
       
       // Double-check content type to ensure it's not SVG
       if (contentType && contentType.includes('svg')) {
+        console.log('[DOCX] Content type is SVG, converting:', contentType);
         const svgContent = new TextDecoder().decode(buffer);
         return await convertSvgImageContent(svgContent, node.alt);
       }
 
       const { width: originalWidth, height: originalHeight } = await getImageDimensions(buffer, contentType);
+      console.log('[DOCX] Image dimensions:', { originalWidth, originalHeight });
       const { width: widthPx, height: heightPx } = calculateImageDimensions(originalWidth, originalHeight);
       const imageType = determineImageType(contentType, node.url);
+      console.log('[DOCX] Creating ImageRun:', { widthPx, heightPx, imageType });
 
       reportResourceProgress();
 
@@ -505,7 +523,7 @@ export function createInlineConverter({
         },
       });
     } catch (error) {
-      console.warn('Failed to load image:', node.url, error);
+      console.warn('[DOCX] Failed to load image:', node.url, error);
       reportResourceProgress();
 
       return new TextRun({
@@ -524,11 +542,13 @@ export function createInlineConverter({
    * @returns ImageRun or TextRun
    */
   async function convertSvgImageFromUrl(url: string, alt?: string): Promise<ImageRun | TextRun> {
+    console.log('[DOCX] convertSvgImageFromUrl called:', { url, alt });
     try {
       const svgContent = await getSvgContent(url, fetchImageAsBuffer);
+      console.log('[DOCX] Got SVG content, length:', svgContent.length);
       return await convertSvgImageContent(svgContent, alt);
     } catch (error) {
-      console.warn('Failed to load SVG image:', url, error);
+      console.warn('[DOCX] Failed to load SVG image:', url, error);
       reportResourceProgress();
       return new TextRun({
         text: `[SVG 图片加载失败: ${alt || url}]`,
@@ -545,6 +565,7 @@ export function createInlineConverter({
    * @returns ImageRun or TextRun
    */
   async function convertSvgImageContent(svgContent: string, alt?: string): Promise<ImageRun | TextRun> {
+    console.log('[DOCX] convertSvgImageContent called, renderer available:', !!renderer);
     if (!renderer) {
       reportResourceProgress();
       return new TextRun({
@@ -555,7 +576,9 @@ export function createInlineConverter({
     }
 
     try {
+      console.log('[DOCX] Calling convertSvgToPng...');
       const { buffer, width, height } = await convertSvgToPng(svgContent, renderer);
+      console.log('[DOCX] SVG converted to PNG:', { bufferLength: buffer.length, width, height });
       
       // Calculate display size (1/4 of original PNG size)
       const displayWidth = Math.round(width / 4);

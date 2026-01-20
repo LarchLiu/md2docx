@@ -355,6 +355,26 @@
     "message": "Tilbakestill",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Skill mellom store/små bokstaver",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Neste",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Søk",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Forrige",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Hele ord",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Automatisk oppdatering",
     "description": "Label for auto refresh checkbox"

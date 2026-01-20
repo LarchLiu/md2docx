@@ -355,6 +355,26 @@
     "message": "Atstatyti",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Skirti didžiąsias/mažąsias",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Kitas",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Ieškoti",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Ankstesnis",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Visas žodis",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Automatinis atnaujinimas",
     "description": "Label for auto refresh checkbox"

@@ -259,6 +259,12 @@ function copyAssets() {
     console.log('  • settings-panel.css');
   }
 
+  // Copy search panel styles
+  if (fs.existsSync('vscode/src/webview/search-panel.css')) {
+    fs.copyFileSync('vscode/src/webview/search-panel.css', path.join(outdir, 'webview', 'search-panel.css'));
+    console.log('  • search-panel.css');
+  }
+
   // Note: fonts (ZhuqueFangsong, ComicNeue) are only needed for mobile app
   // VS Code extension uses system fonts, no need to bundle custom fonts
 

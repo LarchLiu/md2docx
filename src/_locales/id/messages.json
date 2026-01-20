@@ -355,6 +355,26 @@
     "message": "Atur ulang",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Cocokkan huruf besar/kecil",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Berikutnya",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Cari",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Sebelumnya",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Kata lengkap",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Penyegaran Otomatis",
     "description": "Label for auto refresh checkbox"

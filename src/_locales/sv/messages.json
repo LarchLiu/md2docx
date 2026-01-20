@@ -355,6 +355,26 @@
     "message": "Återställ",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Skiftlägeskänslig",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Nästa",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Sök",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Föregående",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Hela ord",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Automatisk uppdatering",
     "description": "Label for auto refresh checkbox"

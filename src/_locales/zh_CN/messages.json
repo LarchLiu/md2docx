@@ -355,6 +355,38 @@
     "message": "重置",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "区分大小写",
+    "description": "Match case sensitivity toggle tooltip"
+  },
+  "search_next": {
+    "message": "下一个",
+    "description": "Next match button tooltip"
+  },
+  "search_placeholder": {
+    "message": "查找",
+    "description": "Search input placeholder text"
+  },
+  "search_previous": {
+    "message": "上一个",
+    "description": "Previous match button tooltip"
+  },
+  "search_whole_word": {
+    "message": "全字匹配",
+    "description": "Match whole word toggle tooltip"
+  },
+  "settings_auto_refresh": {
+    "message": "自动刷新",
+    "description": "自动刷新复选框标签"
+  },
+  "settings_auto_refresh_interval": {
+    "message": "刷新间隔:",
+    "description": "刷新间隔选择器标签"
+  },
+  "settings_auto_refresh_note": {
+    "message": "本地文件变化时自动刷新预览（仅限 file:// 协议）。",
+    "description": "自动刷新选项说明"
+  },
   "settings_docx_emoji_style": {
     "message": "表情符号样式",
     "description": "Label for emoji style selector in DOCX export settings"
@@ -391,33 +423,21 @@
     "message": "隐藏",
     "description": "Option to hide frontmatter"
   },
-  "settings_frontmatter_table": {
-    "message": "数据表格",
-    "description": "Option to display frontmatter as table"
+  "settings_frontmatter_note": {
+    "message": "选择如何显示 Markdown 文件开头的 YAML frontmatter。",
+    "description": "Helper note for frontmatter display option"
   },
   "settings_frontmatter_raw": {
     "message": "原始信息",
     "description": "Option to display frontmatter as blockquote"
   },
-  "settings_frontmatter_note": {
-    "message": "选择如何显示 Markdown 文件开头的 YAML frontmatter。",
-    "description": "Helper note for frontmatter display option"
+  "settings_frontmatter_table": {
+    "message": "数据表格",
+    "description": "Option to display frontmatter as table"
   },
   "settings_general_title": {
     "message": "扩展设置",
     "description": "设置区标题"
-  },
-  "settings_auto_refresh": {
-    "message": "自动刷新",
-    "description": "自动刷新复选框标签"
-  },
-  "settings_auto_refresh_note": {
-    "message": "本地文件变化时自动刷新预览（仅限 file:// 协议）。",
-    "description": "自动刷新选项说明"
-  },
-  "settings_auto_refresh_interval": {
-    "message": "刷新间隔:",
-    "description": "刷新间隔选择器标签"
   },
   "settings_interface_title": {
     "message": "界面设置",

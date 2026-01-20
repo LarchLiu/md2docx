@@ -355,6 +355,38 @@
     "message": "Reset",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Match Case",
+    "description": "Match case sensitivity toggle tooltip"
+  },
+  "search_next": {
+    "message": "Next Match",
+    "description": "Next match button tooltip"
+  },
+  "search_placeholder": {
+    "message": "Find",
+    "description": "Search input placeholder text"
+  },
+  "search_previous": {
+    "message": "Previous Match",
+    "description": "Previous match button tooltip"
+  },
+  "search_whole_word": {
+    "message": "Match Whole Word",
+    "description": "Match whole word toggle tooltip"
+  },
+  "settings_auto_refresh": {
+    "message": "Auto Refresh",
+    "description": "Label for auto refresh checkbox"
+  },
+  "settings_auto_refresh_interval": {
+    "message": "Refresh interval:",
+    "description": "Label for refresh interval selector"
+  },
+  "settings_auto_refresh_note": {
+    "message": "Automatically reload when local file changes (file:// URLs only).",
+    "description": "Helper note for auto refresh option"
+  },
   "settings_docx_emoji_style": {
     "message": "Emoji Style",
     "description": "Label for emoji style selector in DOCX export settings"
@@ -391,33 +423,21 @@
     "message": "Hide",
     "description": "Option to hide frontmatter"
   },
-  "settings_frontmatter_table": {
-    "message": "Table",
-    "description": "Option to display frontmatter as table"
+  "settings_frontmatter_note": {
+    "message": "Choose how to display YAML frontmatter at the beginning of Markdown files.",
+    "description": "Helper note for frontmatter display option"
   },
   "settings_frontmatter_raw": {
     "message": "Raw (blockquote)",
     "description": "Option to display frontmatter as blockquote"
   },
-  "settings_frontmatter_note": {
-    "message": "Choose how to display YAML frontmatter at the beginning of Markdown files.",
-    "description": "Helper note for frontmatter display option"
+  "settings_frontmatter_table": {
+    "message": "Table",
+    "description": "Option to display frontmatter as table"
   },
   "settings_general_title": {
     "message": "Extension settings",
     "description": "Heading for settings section"
-  },
-  "settings_auto_refresh": {
-    "message": "Auto Refresh",
-    "description": "Label for auto refresh checkbox"
-  },
-  "settings_auto_refresh_note": {
-    "message": "Automatically reload when local file changes (file:// URLs only).",
-    "description": "Helper note for auto refresh option"
-  },
-  "settings_auto_refresh_interval": {
-    "message": "Refresh interval:",
-    "description": "Label for refresh interval selector"
   },
   "settings_interface_title": {
     "message": "Interface settings",

@@ -355,6 +355,26 @@
     "message": "Скінуць",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "З улікам рэгістра",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Наступны",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Пошук",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Папярэдні",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Слова цалкам",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Аўтаматычнае абнаўленне",
     "description": "Label for auto refresh checkbox"

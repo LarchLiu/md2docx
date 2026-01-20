@@ -355,6 +355,26 @@
     "message": "Reimposta",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Maiuscole/minuscole",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Successivo",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Cerca",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Precedente",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Parola intera",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Aggiornamento automatico",
     "description": "Label for auto refresh checkbox"

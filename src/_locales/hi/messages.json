@@ -355,6 +355,26 @@
     "message": "रीसेट",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "केस मिलाएं",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "अगला",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "खोजें",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "पिछला",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "पूरा शब्द",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "स्वतः रिफ्रेश",
     "description": "Label for auto refresh checkbox"

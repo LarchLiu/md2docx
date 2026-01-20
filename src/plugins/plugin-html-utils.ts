@@ -39,9 +39,7 @@ export function convertPluginResultToHTML(
       : '';
     
     if (inline) {
-      return `<span class="diagram-inline" style="display: inline-block;" ${dataAttrs}>
-        <img src="data:image/png;base64,${base64}" alt="${pluginType} diagram" width="${displayWidth}px" style="vertical-align: middle;" />
-      </span>`;
+      return `<img class="diagram-inline" src="data:image/png;base64,${base64}" alt="${pluginType} diagram" width="${displayWidth}px" ${dataAttrs} />`;
     }
     
     return `<div class="diagram-block" style="text-align: center; margin: 20px 0;" ${dataAttrs}>

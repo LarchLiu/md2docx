@@ -355,6 +355,26 @@
     "message": "重置",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "區分大小寫",
+    "description": "Match case sensitivity toggle tooltip"
+  },
+  "search_next": {
+    "message": "下一個",
+    "description": "Next match button tooltip"
+  },
+  "search_placeholder": {
+    "message": "尋找",
+    "description": "Search input placeholder text"
+  },
+  "search_previous": {
+    "message": "上一個",
+    "description": "Previous match button tooltip"
+  },
+  "search_whole_word": {
+    "message": "全字匹配",
+    "description": "Match whole word toggle tooltip"
+  },
   "settings_auto_refresh": {
     "message": "自動重新整理",
     "description": "Label for auto refresh checkbox"

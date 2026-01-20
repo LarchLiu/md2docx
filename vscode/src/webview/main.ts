@@ -29,6 +29,7 @@ import {
 
 // VSCode-specific UI components
 import { createSettingsPanel, type SettingsPanel, type ThemeOption, type LocaleOption } from './settings-panel';
+import { createSearchPanel, type SearchPanel, type HighlightMatch, type SearchOptions } from './search-panel';
 
 // Declare global types for VSCode-specific variables
 declare global {
@@ -55,6 +56,8 @@ let renderQueue: Promise<void> = Promise.resolve();
 
 // UI components
 let settingsPanel: SettingsPanel | null = null;
+let searchPanel: SearchPanel | null = null;
+let currentHighlights: Map<HTMLElement, HTMLElement> = new Map(); // Original element → wrapper
 
 // Create plugin renderer using shared utility
 const pluginRenderer = createPluginRenderer(platform);
@@ -169,6 +172,10 @@ function handleExtensionMessage(message: ExtensionMessage): void {
 
     case 'OPEN_SETTINGS':
       handleOpenSettings();
+      break;
+
+    case 'OPEN_SEARCH':
+      handleOpenSearch();
       break;
 
     case 'SCROLL_TO_LINE':
@@ -322,6 +329,8 @@ declare global {
     setTheme: (themeId: string) => void;
     setZoom: (zoom: number) => void;
     exportDocx: () => void;
+    openSearch: () => void;
+    closeSearch: () => void;
   }
 }
 
@@ -343,11 +352,32 @@ window.exportDocx = () => {
   handleExportDocx();
 };
 
+window.openSearch = () => {
+  if (searchPanel) {
+    searchPanel.show();
+  }
+};
+
+window.closeSearch = () => {
+  if (searchPanel) {
+    searchPanel.hide();
+  }
+};
+
 // ============================================================================
 // UI Initialization
 // ============================================================================
 
 function initializeUI(): void {
+  // Setup keyboard shortcut for search (Cmd/Ctrl+F)
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+      e.preventDefault();
+      e.stopPropagation();
+      handleOpenSearch();
+    }
+  });
+
   // Setup link click handling via event delegation
   // This ensures all links (including dynamically added ones) are handled
   const contentContainer = document.getElementById('markdown-content');
@@ -398,6 +428,9 @@ function initializeUI(): void {
       // Update settings panel labels
       settingsPanel?.updateLabels();
       
+      // Update search panel localization
+      searchPanel?.updateLocalization();
+      
       // Reload themes with new locale names
       await loadThemesForSettings();
       
@@ -430,6 +463,23 @@ function initializeUI(): void {
     }
   });
   document.body.appendChild(settingsPanel.getElement());
+
+  // Create search panel
+  searchPanel = createSearchPanel({
+    onSearch: (query: string, options: SearchOptions) => {
+      return performSearch(query, options);
+    },
+    onClear: () => {
+      clearHighlights();
+    },
+    onNavigate: (index: number) => {
+      scrollToHighlight(index);
+    },
+    onClose: () => {
+      clearHighlights();
+    }
+  });
+  document.body.appendChild(searchPanel.getElement());
 }
 
 /**
@@ -442,6 +492,20 @@ function handleOpenSettings(): void {
     } else {
       // Show settings panel at a fixed position (top-right corner)
       settingsPanel.showAtPosition(window.innerWidth - 300, 10);
+    }
+  }
+}
+
+/**
+ * Handle open search command from extension host
+ */
+function handleOpenSearch(): void {
+  if (searchPanel) {
+    if (searchPanel.isVisible()) {
+      searchPanel.hide();
+    } else {
+      searchPanel.show();
+      searchPanel.focus();
     }
   }
 }
@@ -536,6 +600,191 @@ async function loadCacheStats(): Promise<void> {
     }
   } catch (error) {
     console.warn('[VSCode Webview] Failed to load cache stats:', error);
+  }
+}
+
+// ============================================================================
+// Search Functions
+// ============================================================================
+
+/**
+ * Perform search in markdown content
+ */
+function performSearch(query: string, options: SearchOptions): HighlightMatch[] {
+  clearHighlights();
+  
+  if (!query) {
+    return [];
+  }
+
+  const container = document.getElementById('markdown-content');
+  if (!container) {
+    return [];
+  }
+
+  const matches: HighlightMatch[] = [];
+  
+  try {
+    // Build regex pattern
+    let pattern = query;
+    
+    if (options.useRegex) {
+      // Use query as regex directly
+      pattern = query;
+    } else {
+      // Escape special regex characters
+      pattern = query.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+    
+    // Add case sensitivity and word boundary flags
+    let flags = options.caseSensitive ? 'g' : 'gi';
+    if (options.wholeWord) {
+      pattern = `\\b${pattern}\\b`;
+    }
+    
+    const regex = new RegExp(pattern, flags);
+    
+    // Walk through text nodes and find matches
+    const walker = document.createTreeWalker(
+      container,
+      NodeFilter.SHOW_TEXT,
+      null
+    );
+
+    let node: Node | null;
+    while ((node = walker.nextNode())) {
+      if (!node.textContent) continue;
+      
+      // Skip matches in code blocks or pre tags
+      const parent = node.parentElement;
+      if (parent?.closest('code, pre, script, style, [data-search-ignore]')) {
+        continue;
+      }
+
+      const text = node.textContent;
+      let match;
+      
+      // Reset regex lastIndex for global matching
+      regex.lastIndex = 0;
+      
+      while ((match = regex.exec(text)) !== null) {
+        matches.push({
+          element: node as HTMLElement,
+          startOffset: match.index,
+          endOffset: match.index + match[0].length
+        });
+      }
+    }
+
+    // Apply highlights
+    if (matches.length > 0) {
+      highlightMatches(matches);
+    }
+  } catch (error) {
+    console.warn('[VSCode Webview] Search error:', error);
+  }
+
+  return matches;
+}
+
+/**
+ * Highlight search matches in the DOM
+ */
+function highlightMatches(matches: HighlightMatch[]): void {
+  if (matches.length === 0) return;
+
+  // Group matches by node for efficient processing
+  const matchesByNode = new Map<Node, HighlightMatch[]>();
+  
+  matches.forEach(match => {
+    if (!matchesByNode.has(match.element)) {
+      matchesByNode.set(match.element, []);
+    }
+    matchesByNode.get(match.element)!.push(match);
+  });
+
+  // Process each text node and its matches
+  matchesByNode.forEach((nodeMatches, node) => {
+    try {
+      if (node.nodeType !== 3) return; // Skip non-text nodes
+      
+      const text = node.textContent || '';
+      const parent = node.parentElement;
+      if (!parent) return;
+
+      // Sort matches by start offset
+      nodeMatches.sort((a, b) => a.startOffset - b.startOffset);
+
+      // Build new content with highlights
+      const fragment = document.createDocumentFragment();
+      let lastEnd = 0;
+
+      nodeMatches.forEach((match, index) => {
+        // Add text before match
+        if (match.startOffset > lastEnd) {
+          fragment.appendChild(
+            document.createTextNode(text.substring(lastEnd, match.startOffset))
+          );
+        }
+
+        // Add highlighted match
+        const span = document.createElement('mark');
+        span.className = 'vscode-search-highlight';
+        if (index === 0) {
+          span.classList.add('current');
+        }
+        span.textContent = text.substring(match.startOffset, match.endOffset);
+        fragment.appendChild(span);
+
+        lastEnd = match.endOffset;
+      });
+
+      // Add remaining text
+      if (lastEnd < text.length) {
+        fragment.appendChild(document.createTextNode(text.substring(lastEnd)));
+      }
+
+      // Replace node with fragment
+      parent.replaceChild(fragment, node);
+    } catch (error) {
+      console.warn('[VSCode Webview] Failed to highlight match:', error);
+    }
+  });
+}
+
+/**
+ * Clear all highlights
+ */
+function clearHighlights(): void {
+  document.querySelectorAll('mark.vscode-search-highlight').forEach(mark => {
+    const parent = mark.parentElement;
+    if (parent) {
+      // Replace mark with its text content
+      const textNode = document.createTextNode(mark.textContent || '');
+      parent.replaceChild(textNode, mark);
+      // Normalize to merge adjacent text nodes
+      parent.normalize();
+    }
+  });
+  currentHighlights.clear();
+}
+
+/**
+ * Scroll to specific highlight
+ */
+function scrollToHighlight(index: number): void {
+  const highlights = document.querySelectorAll('.vscode-search-highlight');
+  if (index >= 0 && index < highlights.length) {
+    const el = highlights[index] as HTMLElement;
+    
+    // Remove current class from all highlights
+    highlights.forEach(h => h.classList.remove('current'));
+    
+    // Add current class to selected highlight
+    el.classList.add('current');
+    
+    // Scroll into view
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
   }
 }
 

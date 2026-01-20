@@ -355,6 +355,26 @@
     "message": "Lähtesta",
     "description": "Reset button"
   },
+  "search_case_sensitive": {
+    "message": "Tõstutundlik",
+    "description": "Toggle case sensitive search"
+  },
+  "search_next": {
+    "message": "Järgmine",
+    "description": "Navigate to next search match"
+  },
+  "search_placeholder": {
+    "message": "Otsi",
+    "description": "Placeholder text for search input"
+  },
+  "search_previous": {
+    "message": "Eelmine",
+    "description": "Navigate to previous search match"
+  },
+  "search_whole_word": {
+    "message": "Terve sõna",
+    "description": "Toggle whole word search"
+  },
   "settings_auto_refresh": {
     "message": "Automaatne värskendamine",
     "description": "Label for auto refresh checkbox"
