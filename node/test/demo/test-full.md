@@ -2400,8 +2400,6 @@ data
 }
 ```
 
----
-
 ### 14.2. 彩色节点
 
 JSON Canvas 支持 6 种预设颜色：
@@ -2419,8 +2417,6 @@ JSON Canvas 支持 6 种预设颜色：
   "edges": []
 }
 ```
-
----
 
 ### 14.3. 分组 (Group)
 
@@ -2475,8 +2471,6 @@ JSON Canvas 支持 6 种预设颜色：
 }
 ```
 
----
-
 ### 14.4. 流程图示例
 
 ```canvas
@@ -2500,8 +2494,6 @@ JSON Canvas 支持 6 种预设颜色：
 }
 ```
 
----
-
 ### 14.5. 不同节点类型
 
 JSON Canvas 支持四种节点类型：text、file、link、group
@@ -2521,8 +2513,6 @@ JSON Canvas 支持四种节点类型：text、file、link、group
 }
 ```
 
----
-
 ### 14.6. 长文本换行
 
 节点内的长文本会自动换行：
@@ -2541,8 +2531,6 @@ JSON Canvas 支持四种节点类型：text、file、link、group
   ]
 }
 ```
-
----
 
 ### 14.7. Markdown 语法支持
 
@@ -2580,8 +2568,6 @@ JSON Canvas 支持四种节点类型：text、file、link、group
 | `` `code` `` | `代码` |
 | `~~text~~` | ~~删除线~~ |
 | `[text](url)` | [链接](url) |
-
----
 
 ### 14.8. 双向箭头和无箭头边
 
@@ -2671,8 +2657,6 @@ JSON Canvas 支持四种节点类型：text、file、link、group
   ]
 }
 ```
-
----
 
 ### 14.10. 节点间距测试
 
