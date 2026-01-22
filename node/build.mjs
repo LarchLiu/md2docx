@@ -326,6 +326,10 @@ async function build() {
       format: 'esm',
       platform: 'browser',
       target: ['chrome120'],
+      // Prefer Web Worker export conditions over DOM/browser ones.
+      // Some deps (e.g. decode-named-character-reference) use `browser` builds that require `document`,
+      // while `worker` builds remain Web Worker compatible.
+      conditions: ['worker', 'browser', 'default'],
       minify: true,
       sourcemap: false,
       define: {

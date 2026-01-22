@@ -19,6 +19,7 @@ export {
   markdownToStandaloneHtml,
   detectLiveRenderTypes,
   buildLiveDiagramBootstrapCdn,
+  collectMd2xTemplateFilesFromMarkdown,
 } from './core';
 
 import {
@@ -132,14 +133,14 @@ export async function convert(
         ...fmOptions.pdf,
         title,
       },
-      templatesDir: options.templatesDir ?? fmOptions.templatesDir,
+      templates: { ...(fmOptions.templates ?? {}), ...(options.templates ?? {}) },
     });
   } else if (format === 'docx') {
     buffer = await markdownToDocxBuffer(markdownContent, {
       theme,
       basePath,
       hrAsPageBreak,
-      templatesDir: options.templatesDir ?? fmOptions.templatesDir,
+      templates: { ...(fmOptions.templates ?? {}), ...(options.templates ?? {}) },
     });
   } else if (format === 'html') {
     buffer = await markdownToHtmlBuffer(markdownContent, {
@@ -153,7 +154,7 @@ export async function convert(
       liveRuntime: options.liveRuntime ?? fmOptions.liveRuntime,
       liveRuntimeBaseUrl: options.liveRuntimeBaseUrl ?? fmOptions.liveRuntimeBaseUrl,
       cdn: options.cdn ?? fmOptions.cdn,
-      templatesDir: options.templatesDir ?? fmOptions.templatesDir,
+      templates: { ...(fmOptions.templates ?? {}), ...(options.templates ?? {}) },
     });
   } else {
     const rawImageOptions = options.image ?? fmOptions.image;
@@ -166,7 +167,7 @@ export async function convert(
       image,
       diagramMode,
       cdn: options.cdn ?? fmOptions.cdn,
-      templatesDir: options.templatesDir ?? fmOptions.templatesDir,
+      templates: { ...(fmOptions.templates ?? {}), ...(options.templates ?? {}) },
     });
     if (!buffers.length) {
       throw new Error('Image conversion produced no output');

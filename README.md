@@ -246,10 +246,11 @@ const data = templateData;
 
 ### Template Resolution (External Templates)
 
-To load templates from outside the built-in `dist/templates`, use either:
+To load templates from outside, use:
 
-- CLI: `--templates-dir /path/to/templates` (repeatable)
-- Front matter: `templatesDir: /path/to/templates` (string or list)
+- CLI: `--templates-dir /path/to/templates` (repeatable; CLI reads files and passes them as `templates`)
+- Library API: pass `templates: Record<string, string>` (you can load files yourself if you want)
+- Front matter: `templates:` supports inline template sources (YAML map)
 
 ### CDN Overrides (Live Mode)
 

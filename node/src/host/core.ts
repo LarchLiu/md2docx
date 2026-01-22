@@ -137,8 +137,13 @@ export function frontMatterToOptions(data: FrontMatterData): FrontMatterOptions 
   }
 
   if (data.cdn && typeof data.cdn === 'object') out.cdn = data.cdn as Record<string, string>;
-  if (typeof (data as any).templatesDir === 'string') out.templatesDir = (data as any).templatesDir;
-  else if (Array.isArray((data as any).templatesDir)) out.templatesDir = (data as any).templatesDir.filter((v: unknown) => typeof v === 'string');
+  if (data.templates && typeof data.templates === 'object' && !Array.isArray(data.templates)) {
+    const templates: Record<string, string> = {};
+    for (const [k, v] of Object.entries(data.templates as Record<string, unknown>)) {
+      if (typeof k === 'string' && typeof v === 'string') templates[k] = v;
+    }
+    if (Object.keys(templates).length > 0) out.templates = templates;
+  }
   if (data.pdf && typeof data.pdf === 'object') out.pdf = data.pdf as Record<string, unknown>;
 
   return out;
@@ -249,15 +254,15 @@ export async function markdownToStandaloneHtml(
   // Build themeConfig from theme (use provided or derive from theme)
   const themeConfig = options.themeConfig ?? (options.theme ? loadRendererThemeConfig(options.theme) : null);
 
-  // Collect md2x template files from fragment
-  const md2xTemplateFiles = collectMd2xTemplateFilesFromHtml(fragment);
+  // Collect md2x template files from markdown (bundled templates + optional preloaded map).
+  const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, options.md2xTemplateFiles);
 
   const liveBootstrap = options.liveDiagrams !== false
     ? buildLiveDiagramBootstrapCdn(detectLiveRenderTypes(fragment), {
         ...options.cdn,
         baseHref: options.baseHref,
         themeConfig,
-        md2xTemplateFiles: { ...md2xTemplateFiles, ...options.md2xTemplateFiles },
+        md2xTemplateFiles,
       })
     : '';
 
@@ -289,15 +294,19 @@ ${liveBootstrap}
 // ============================================================================
 
 /**
- * Collect md2x template files from HTML (uses bundled templates)
+ * Collect md2x template files from markdown (uses bundled templates + optional pre-loaded templates map)
  */
-function collectMd2xTemplateFilesFromHtml(html: string): Record<string, string> {
-  const codeBlockRegex = /<pre><code class="[^"]*\blanguage-md2x\b[^"]*">([\s\S]*?)<\/code><\/pre>/gi;
-  const matches = [...html.matchAll(codeBlockRegex)];
+export function collectMd2xTemplateFilesFromMarkdown(
+  markdown: string,
+  templates?: Record<string, string>
+): Record<string, string> {
   const out: Record<string, string> = {};
+  const files = templates ?? {};
 
   const extractQuoted = (text: string, key: string): string => {
-    const m = text.match(new RegExp(`\\b${key}\\s*:\\s*(['"])([^\\n\\r]*?)\\1`, 'i'));
+    // Best-effort: `key: 'value'` / `key: "value"` (usually single-line).
+    // Note: intentionally does not support template literals to avoid escaping issues and surprises.
+    const m = String(text || '').match(new RegExp(`\\b${key}\\s*:\\s*(['"])([^\\n\\r]*?)\\1`, 'i'));
     return (m?.[2] ?? '').trim();
   };
 
@@ -305,24 +314,34 @@ function collectMd2xTemplateFilesFromHtml(html: string): Record<string, string> 
     const t = String(type || '').trim().toLowerCase();
     const v = String(tpl || '').trim();
     if (!t || !v) return v;
-    if (v.includes('/') || v.includes('\\') || v.includes('://')) return v;
+    // If user already provided a path/URL, keep it.
+    if (v.includes('/') || v.includes('\\') || v.includes('://') || v.startsWith('file://')) return v;
     return `${t}/${v}`;
   };
 
+  // Match fenced md2x blocks:
+  // ```md2x
+  // ...
+  // ```
+  const fenceRegex = /```md2x[^\n\r]*[\r\n]([\s\S]*?)```/gi;
+  const matches = [...String(markdown || '').matchAll(fenceRegex)];
+
   for (const match of matches) {
-    const codeHtml = match[1] ?? '';
-    const decodedCode = String(codeHtml || '').replace(/<[^>]*>/g, '')
-      .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
-    const typeRef = extractQuoted(decodedCode, 'type');
-    const templateRaw = extractQuoted(decodedCode, 'template');
+    const code = String(match[1] ?? '');
+    const typeRef = extractQuoted(code, 'type');
+    const templateRaw = extractQuoted(code, 'template');
     const templateRef = normalizeMd2xTemplateRef(typeRef, templateRaw);
     if (!templateRef) continue;
 
-    const bundledContent = bundledTemplates[templateRef];
-    if (bundledContent) {
-      out[templateRef] = bundledContent;
-      // if (templateRaw) out[templateRaw] = bundledContent;
-    }
+    const fromProvided =
+      (typeof files[templateRef] === 'string' ? files[templateRef] : undefined) ??
+      (templateRaw && typeof files[templateRaw] === 'string' ? files[templateRaw] : undefined);
+    const fromBundled = bundledTemplates[templateRef];
+    const content = typeof fromProvided === 'string' ? fromProvided : fromBundled;
+    if (!content) continue;
+
+    out[templateRef] = content;
+    if (templateRaw) out[templateRaw] = content;
   }
 
   return out;

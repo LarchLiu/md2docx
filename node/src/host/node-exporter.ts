@@ -17,8 +17,15 @@ import { createBrowserRenderer } from './browser-renderer';
 import { createNodePlatform } from './node-platform';
 import { plugins } from '../../../src/plugins/index';
 import type { PluginRenderer } from '../../../src/types/index';
-import { markdownToHtml, buildLiveDiagramBootstrapCdn, liveRuntimeChunks, loadBaseCss, loadThemeCss, loadRendererThemeConfig } from './core';
-import { templates as bundledTemplates } from './templates-data';
+import {
+  markdownToHtml,
+  buildLiveDiagramBootstrapCdn,
+  liveRuntimeChunks,
+  loadBaseCss,
+  loadThemeCss,
+  loadRendererThemeConfig,
+  collectMd2xTemplateFilesFromMarkdown,
+} from './core';
 import type {
   RendererThemeConfig,
   BrowserRenderer,
@@ -108,234 +115,17 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&#38;/g, '&');
 }
 
-function collectMd2xTemplateFiles(
-  html: string,
-  basePath: string,
-  templatesDir?: string | string[]
-): Record<string, string> {
-  // Match md2x code blocks in the HTML fragment.
-  // Same considerations as diagrams: rehype-highlight may add "hljs".
-  const codeBlockRegex = new RegExp(`<pre><code class="[^"]*\\blanguage-md2x\\b[^"]*">([\\s\\S]*?)<\\/code><\\/pre>`, 'gi');
-  const matches = [...html.matchAll(codeBlockRegex)];
-  const out: Record<string, string> = {};
-
-  const extractQuoted = (text: string, key: string): string => {
-    // Best-effort: `key: 'value'` / `key: "value"` (usually single-line).
-    // Note: intentionally does not support template literals to avoid escaping issues and surprises.
-    const m = text.match(new RegExp(`\\b${key}\\s*:\\s*(['"])([^\\n\\r]*?)\\1`, 'i'));
-    return (m?.[2] ?? '').trim();
-  };
-
-  const normalizeMd2xTemplateRef = (type: string, tpl: string): string => {
-    const t = String(type || '').trim().toLowerCase();
-    const v = String(tpl || '').trim();
-    if (!t || !v) return v;
-    // If user already provided a path/URL, keep it.
-    if (v.includes('/') || v.includes('\\') || v.includes('://') || v.startsWith('file://')) return v;
-    return `${t}/${v}`;
-  };
-
-  const normalizeTemplateDirs = (): string[] => {
-    if (!templatesDir) return [];
-    const arr = Array.isArray(templatesDir) ? templatesDir : [templatesDir];
-    return arr
-      .map((d) => String(d || '').trim())
-      .filter(Boolean);
-  };
-
-  for (const match of matches) {
-    const codeHtml = match[1] ?? '';
-    // If highlight spans are present, strip tags to recover the raw text.
-    // Important: strip tags BEFORE decoding entities, otherwise real "&lt;...&gt;" in strings would be lost.
-    const decodedCode = decodeHtmlEntities(String(codeHtml || '').replace(/<[^>]*>/g, ''));
-    const typeRef = extractQuoted(decodedCode, 'type');
-    const templateRaw = extractQuoted(decodedCode, 'template');
-    const templateRef = normalizeMd2xTemplateRef(typeRef, templateRaw);
-    if (!templateRef) continue;
-
-    // First check bundled templates
-    const bundledContent = bundledTemplates[templateRef];
-    if (bundledContent) {
-      out[templateRef] = bundledContent;
-      if (templateRaw) out[templateRaw] = bundledContent;
-      continue;
-    }
-
-    // Fall back to file system lookup
-    const resolveExistingFilePath = (ref: string): string | null => {
-      try {
-        if (String(ref).toLowerCase().startsWith('file://')) {
-          const p = fileURLToPath(ref);
-          return fs.existsSync(p) ? p : null;
-        }
-        if (path.isAbsolute(ref)) {
-          return fs.existsSync(ref) ? ref : null;
-        }
-
-        const extraDirs = normalizeTemplateDirs().map((d) => {
-          try {
-            if (String(d).toLowerCase().startsWith('file://')) return fileURLToPath(d);
-          } catch {}
-          // Relative template dir is resolved against basePath to match user expectations.
-          return path.isAbsolute(d) ? d : path.join(basePath, d);
-        });
-
-        const extraCandidates: string[] = [];
-        for (const dir of extraDirs) {
-          extraCandidates.push(path.join(dir, ref));
-        }
-
-        const candidates = [
-          // User templates usually live next to the markdown document (basePath).
-          path.join(basePath, ref),
-          // Optional external template dirs (CLI --template-dir).
-          ...extraCandidates,
-        ];
-        for (const p of candidates) {
-          if (fs.existsSync(p)) return p;
-        }
-        return null;
-      } catch {
-        return null;
-      }
-    };
-
-    const filePath = resolveExistingFilePath(templateRef);
-    if (!filePath) continue;
-
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const href = pathToFileURL(filePath).href;
-      // Prefer absolute file:// keys to avoid browser fetch/CORS restrictions.
-      out[href] = content;
-      // Also keep the original key as a fallback (for loaders that pass relative paths through).
-      out[templateRef] = content;
-      // And keep the raw `template:` value too (so old blocks keep working).
-      if (templateRaw) out[templateRaw] = content;
-    } catch {
-      // Skip missing templates; renderer will show a "missing template" message.
-    }
-  }
-
-  return out;
-}
-
-function collectMd2xTemplateFilesFromMarkdown(
-  markdown: string,
-  basePath: string,
-  templatesDir?: string | string[]
-): Record<string, string> {
-  // Match fenced md2x blocks:
-  // ```md2x
-  // ...
-  // ```
-  const fenceRegex = /```md2x[^\n\r]*[\r\n]([\s\S]*?)```/gi;
-  const matches = [...String(markdown || '').matchAll(fenceRegex)];
-  const out: Record<string, string> = {};
-
-  const extractQuoted = (text: string, key: string): string => {
-    const m = text.match(new RegExp(`\\b${key}\\s*:\\s*(['"])([^\\n\\r]*?)\\1`, 'i'));
-    return (m?.[2] ?? '').trim();
-  };
-
-  const normalizeMd2xTemplateRef = (type: string, tpl: string): string => {
-    const t = String(type || '').trim().toLowerCase();
-    const v = String(tpl || '').trim();
-    if (!t || !v) return v;
-    if (v.includes('/') || v.includes('\\') || v.includes('://') || v.startsWith('file://')) return v;
-    return `${t}/${v}`;
-  };
-
-  const normalizeTemplateDirs = (): string[] => {
-    if (!templatesDir) return [];
-    const arr = Array.isArray(templatesDir) ? templatesDir : [templatesDir];
-    return arr
-      .map((d) => String(d || '').trim())
-      .filter(Boolean);
-  };
-
-  const resolveExistingFilePath = (ref: string): string | null => {
-    try {
-      if (String(ref).toLowerCase().startsWith('file://')) {
-        const p = fileURLToPath(ref);
-        return fs.existsSync(p) ? p : null;
-      }
-      if (path.isAbsolute(ref)) {
-        return fs.existsSync(ref) ? ref : null;
-      }
-
-      const extraDirs = normalizeTemplateDirs().map((d) => {
-        try {
-          if (String(d).toLowerCase().startsWith('file://')) return fileURLToPath(d);
-        } catch {}
-        return path.isAbsolute(d) ? d : path.join(basePath, d);
-      });
-
-      const extraCandidates: string[] = [];
-      for (const dir of extraDirs) {
-        extraCandidates.push(path.join(dir, ref));
-      }
-
-      const candidates = [
-        path.join(basePath, ref),
-        ...extraCandidates,
-      ];
-      for (const p of candidates) {
-        if (fs.existsSync(p)) return p;
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
-
-  for (const match of matches) {
-    const code = String(match[1] ?? '');
-    const typeRef = extractQuoted(code, 'type');
-    const templateRaw = extractQuoted(code, 'template');
-    const templateRef = normalizeMd2xTemplateRef(typeRef, templateRaw);
-    if (!templateRef) continue;
-
-    // First check bundled templates
-    const bundledContent = bundledTemplates[templateRef];
-    if (bundledContent) {
-      out[templateRef] = bundledContent;
-      if (templateRaw) out[templateRaw] = bundledContent;
-      continue;
-    }
-
-    // Fall back to file system lookup
-    const filePath = resolveExistingFilePath(templateRef);
-    if (!filePath) continue;
-
-    try {
-      const content = fs.readFileSync(filePath, 'utf-8');
-      const href = pathToFileURL(filePath).href;
-      out[href] = content;
-      out[templateRef] = content;
-      if (templateRaw) out[templateRaw] = content;
-    } catch {
-      // ignore
-    }
-  }
-
-  return out;
-}
-
 async function processDiagrams(
   html: string,
   browserRenderer: BrowserRenderer | null,
   basePath: string,
   themeConfig: RendererThemeConfig,
   mode: 'img' | 'live' | 'none',
-  templatesDir?: string | string[],
+  md2xTemplateFiles?: Record<string, string>,
   cdnOverrides?: Md2HtmlOptions['cdn']
 ): Promise<string> {
   if (mode !== 'img') return html;
   if (!browserRenderer) return html;
-
-  // md2x templates are local files. Pre-load them on the Node side to avoid file:// fetch issues in the browser page.
-  const md2xTemplateFiles = collectMd2xTemplateFiles(html, basePath, templatesDir);
 
   // Build supported languages from plugin system
   // Only include plugins that handle 'code' nodes (not 'html' or 'image' only)
@@ -377,7 +167,7 @@ async function processDiagrams(
         renderType === 'md2x'
           ? ({
               code: decodedCode,
-              templateFiles: md2xTemplateFiles,
+              templateFiles: md2xTemplateFiles ?? {},
               cdn: {
                 vue: cdnOverrides?.vue,
                 vueSfcLoader: cdnOverrides?.vueSfcLoader,
@@ -412,14 +202,17 @@ async function markdownToHtmlFragment(
   basePath: string,
   themeConfig: RendererThemeConfig,
   diagramMode: 'img' | 'live' | 'none',
-  templatesDir?: string | string[],
+  templates?: Record<string, string>,
   cdnOverrides?: Md2HtmlOptions['cdn']
 ): Promise<string> {
   // Use core markdown-to-html conversion
   let html = await markdownToHtml(markdown);
 
+  const md2xTemplateFiles =
+    diagramMode === 'img' ? collectMd2xTemplateFilesFromMarkdown(markdown, templates) : undefined;
+
   // Process diagrams (mermaid, graphviz, vega-lite, etc.)
-  html = await processDiagrams(html, browserRenderer, basePath, themeConfig, diagramMode, templatesDir, cdnOverrides);
+  html = await processDiagrams(html, browserRenderer, basePath, themeConfig, diagramMode, md2xTemplateFiles, cdnOverrides);
 
   return html;
 }
@@ -620,7 +413,7 @@ export class NodeDocxExporter {
       }
 
       const themeConfig = loadRendererThemeConfig(themeId);
-      const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, basePath, options.templatesDir);
+      const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, options.templates);
       const pluginRenderer = createPluginRenderer(browserRenderer, basePath, themeConfig, md2xTemplateFiles);
 
       // Dynamic import to reduce bundle size - docx is only loaded when needed
@@ -708,10 +501,10 @@ export class NodePdfExporter {
       const themeConfig = loadRendererThemeConfig(themeId);
 
       const diagramMode: 'img' | 'live' | 'none' = options.diagramMode ?? 'img';
-      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templatesDir, options.cdn);
+      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templates, options.cdn);
       if (diagramMode === 'live') {
         const baseHref = pathToFileURL(basePath + path.sep).href;
-        const md2xTemplateFiles = collectMd2xTemplateFiles(html, basePath, options.templatesDir);
+        const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, options.templates);
         const requiredTypes = detectLiveRenderTypesFromHtml(html);
         html = html + '\n' + buildLiveDiagramBootstrap(themeConfig ?? null, baseHref, options.cdn, md2xTemplateFiles, { mode: 'inline' }, requiredTypes);
       }
@@ -781,10 +574,10 @@ export class NodeImageExporter {
       const themeConfig = loadRendererThemeConfig(themeId);
 
       const diagramMode: 'img' | 'live' | 'none' = options.diagramMode ?? 'live';
-      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templatesDir, options.cdn);
+      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templates, options.cdn);
       if (diagramMode === 'live') {
         const baseHref = pathToFileURL(basePath + path.sep).href;
-        const md2xTemplateFiles = collectMd2xTemplateFiles(html, basePath, options.templatesDir);
+        const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, options.templates);
         const requiredTypes = detectLiveRenderTypesFromHtml(html);
         html = html + '\n' + buildLiveDiagramBootstrap(themeConfig ?? null, baseHref, options.cdn, md2xTemplateFiles, { mode: 'inline' }, requiredTypes);
       }
@@ -846,10 +639,10 @@ export class NodeImageExporter {
       const themeConfig = loadRendererThemeConfig(themeId);
 
       const diagramMode: 'img' | 'live' | 'none' = options.diagramMode ?? 'live';
-      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templatesDir, options.cdn);
+      let html = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templates, options.cdn);
       if (diagramMode === 'live') {
         const baseHref = pathToFileURL(basePath + path.sep).href;
-        const md2xTemplateFiles = collectMd2xTemplateFiles(html, basePath, options.templatesDir);
+        const md2xTemplateFiles = collectMd2xTemplateFilesFromMarkdown(markdown, options.templates);
         const requiredTypes = detectLiveRenderTypesFromHtml(html);
         html = html + '\n' + buildLiveDiagramBootstrap(themeConfig ?? null, baseHref, options.cdn, md2xTemplateFiles, { mode: 'inline' }, requiredTypes);
       }
@@ -920,7 +713,7 @@ export class NodeHtmlExporter {
         }
       }
 
-      const fragment = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templatesDir, options.cdn);
+      const fragment = await markdownToHtmlFragment(markdown, browserRenderer, basePath, themeConfig, diagramMode, options.templates, options.cdn);
 
       const standalone = options.standalone !== false;
       if (!standalone) return fragment;
@@ -954,7 +747,7 @@ export class NodeHtmlExporter {
           themeConfig ?? null,
           baseHref,
           options.cdn,
-          collectMd2xTemplateFiles(fragment, basePath, options.templatesDir),
+          collectMd2xTemplateFilesFromMarkdown(markdown, options.templates),
           { mode: options.liveRuntime ?? 'cdn', baseUrl: options.liveRuntimeBaseUrl },
           detectLiveRenderTypesFromHtml(fragment)
         )

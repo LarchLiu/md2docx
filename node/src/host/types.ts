@@ -113,7 +113,17 @@ export interface FrontMatterOptions {
     svelteCompiler: string;
     svelteBase: string;
   }>;
-  templatesDir?: string | string[];
+  /**
+   * Pre-loaded md2x template sources, keyed by template ref.
+   *
+   * Common keys:
+   * - "vue/my-component.vue"
+   * - "svelte/my-widget.svelte"
+   * - "html/my-template.html"
+   *
+   * You may also include the raw `template:` value (e.g. "my-component.vue") as an additional key.
+   */
+  templates?: Record<string, string>;
   pdf?: PdfOptions;
 }
 
@@ -203,8 +213,8 @@ export interface Md2xBaseOptions {
   hrAsPageBreak?: boolean;
   /** Diagram/template rendering mode: "img" | "live" | "none" */
   diagramMode?: DiagramMode;
-  /** Extra directories to search for md2x templates */
-  templatesDir?: string | string[];
+  /** Pre-loaded md2x template sources */
+  templates?: Record<string, string>;
 }
 
 export interface Md2DocxOptions extends Md2xBaseOptions {}

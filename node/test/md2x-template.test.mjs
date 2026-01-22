@@ -62,17 +62,15 @@ describe('md2x templates (vue)', () => {
     const tplPath = path.join(tmpDir, 'vue', 'my-component.vue');
     fs.mkdirSync(path.dirname(tplPath), { recursive: true });
 
-    writeUtf8(
-      tplPath,
-      `<script setup>
+    const tplContent = `<script setup>
 const data = templateData;
 </script>
 
 <template>
   <div class="root">{{ Array.isArray(data) ? data.length : 'nope' }}</div>
 </template>
-`,
-    );
+`;
+    writeUtf8(tplPath, tplContent);
 
     const md = [
       '# md2x vue template test',
@@ -91,15 +89,18 @@ const data = templateData;
       diagramMode: 'live',
       // Make the output runnable directly via file:// (no /dist/renderer/... path assumptions).
       liveRuntime: 'inline',
+      templates: {
+        'vue/my-component.vue': tplContent,
+        'my-component.vue': tplContent,
+      },
     });
 
     const outHtmlPath = path.join(tmpDir, 'out.live.html');
     writeUtf8(outHtmlPath, html);
 
-    const tplHref = pathToFileURL(tplPath).href;
-
     assert.ok(html.includes('md2xTemplateFiles'));
-    assert.ok(html.includes(tplHref));
+    assert.ok(html.includes('"my-component.vue"'));
+    assert.ok(html.includes('"vue/my-component.vue"'));
     // The bootstrap JSON replaces `<` with `\\u003c` to avoid `</script>` hazards.
     assert.ok(html.includes('\\u003cscript setup>'));
     assert.ok(html.includes('templateData'));
@@ -113,14 +114,12 @@ const data = templateData;
     const tplPath = path.join(tmpTplDir, 'vue', 'my-component.vue');
     fs.mkdirSync(path.dirname(tplPath), { recursive: true });
 
-    writeUtf8(
-      tplPath,
-      `<script setup>
+    const tplContent = `<script setup>
 const data = templateData;
 </script>
 <template><div class="ok">ok</div></template>
-`,
-    );
+`;
+    writeUtf8(tplPath, tplContent);
 
     const md = [
       '# test',
@@ -139,13 +138,15 @@ const data = templateData;
       diagramMode: 'live',
       standalone: true,
       liveRuntime: 'inline',
-      templatesDir: tmpTplDir,
+      templates: {
+        'vue/my-component.vue': tplContent,
+        'my-component.vue': tplContent,
+      },
     });
 
     const outHtmlPath = path.join(tmpDocDir, 'out.template-dir.html');
     writeUtf8(outHtmlPath, html);
 
-    assert.ok(html.includes(pathToFileURL(tplPath).href));
     assert.ok(html.includes('"my-component.vue"'));
     assert.ok(html.includes('"vue/my-component.vue"'));
   });
@@ -157,17 +158,15 @@ const data = templateData;
     const tplPath = path.join(tmpDir, 'vue', 'my-component.vue');
     fs.mkdirSync(path.dirname(tplPath), { recursive: true });
 
-    writeUtf8(
-      tplPath,
-      `<script setup>
+    const tplContent = `<script setup>
 const data = templateData;
 </script>
 
 <template>
   <div class="root">{{ Array.isArray(data) ? data.length : 'nope' }}</div>
 </template>
-`,
-    );
+`;
+    writeUtf8(tplPath, tplContent);
 
     const md = [
       '# md2x vue template render test',
@@ -185,6 +184,10 @@ const data = templateData;
       standalone: true,
       diagramMode: 'live',
       liveRuntime: 'inline',
+      templates: {
+        'vue/my-component.vue': tplContent,
+        'my-component.vue': tplContent,
+      },
     });
 
     const outHtmlPath = path.join(tmpDir, 'out.render.html');
@@ -194,7 +197,7 @@ const data = templateData;
     assert.ok(dom.includes('<div class="root">1</div>'));
   });
 
-  test('renders template from templatesDir to DOM (integration; requires browser + network)', async (t) => {
+  test('renders template from templates to DOM (integration; requires browser + network)', async (t) => {
     if (!(await canUseBrowser(api))) return t.skip('Chromium/Puppeteer not available in this environment');
 
     const tmpDocDir = makeOutSubdir('md2x-doc-render-');
@@ -202,14 +205,12 @@ const data = templateData;
     const tplPath = path.join(tmpTplDir, 'vue', 'my-component.vue');
     fs.mkdirSync(path.dirname(tplPath), { recursive: true });
 
-    writeUtf8(
-      tplPath,
-      `<script setup>
+    const tplContent = `<script setup>
 const data = templateData;
 </script>
 <template><div class="ok">ok</div></template>
-`,
-    );
+`;
+    writeUtf8(tplPath, tplContent);
 
     const md = [
       '# test',
@@ -228,7 +229,10 @@ const data = templateData;
       diagramMode: 'live',
       standalone: true,
       liveRuntime: 'inline',
-      templatesDir: tmpTplDir,
+      templates: {
+        'vue/my-component.vue': tplContent,
+        'my-component.vue': tplContent,
+      },
     });
 
     const outHtmlPath = path.join(tmpDocDir, 'out.render.html');
@@ -238,4 +242,3 @@ const data = templateData;
     assert.ok(dom.includes('<div class="ok">ok</div>'));
   });
 });
-

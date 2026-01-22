@@ -10,7 +10,7 @@
 
 import * as fs from 'fs';
 import * as path from 'path';
-import { fileURLToPath } from 'url';
+import { fileURLToPath, pathToFileURL } from 'url';
 
 // Set the module directory globally for code-split chunks to use
 // This must be done before any other imports that depend on it
@@ -63,6 +63,82 @@ interface NodeOptions {
   hrPageBreak: boolean | null;
   /** Track which options were explicitly set via CLI args */
   _explicit: Set<string>;
+}
+
+function loadTemplatesFromDir(dir: string, basePath: string): Record<string, string> {
+  const out: Record<string, string> = {};
+
+  const resolveDir = (d: string): string => {
+    const raw = String(d || '').trim();
+    if (!raw) return '';
+    try {
+      if (raw.toLowerCase().startsWith('file://')) return fileURLToPath(raw);
+    } catch {}
+    return path.isAbsolute(raw) ? raw : path.join(basePath, raw);
+  };
+
+  const root = resolveDir(dir);
+  if (!root) return out;
+  if (!fs.existsSync(root)) return out;
+
+  const walk = (p: string) => {
+    let st: fs.Stats;
+    try {
+      st = fs.statSync(p);
+    } catch {
+      return;
+    }
+
+    if (st.isDirectory()) {
+      let entries: string[] = [];
+      try {
+        entries = fs.readdirSync(p);
+      } catch {
+        return;
+      }
+      for (const name of entries) {
+        walk(path.join(p, name));
+      }
+      return;
+    }
+
+    if (!st.isFile()) return;
+
+    let content = '';
+    try {
+      content = fs.readFileSync(p, 'utf-8');
+    } catch {
+      return;
+    }
+
+    const rel = path.relative(root, p);
+    const relPosix = rel.split(path.sep).join('/');
+    const baseName = path.basename(p);
+
+    // Primary key: `vue/foo.vue`, `svelte/foo.svelte`, ...
+    out[relPosix] = content;
+    // Convenience keys for blocks that only specify the filename.
+    out[baseName] = content;
+    // Also expose `./...` to match blocks like `template: './vue/foo.vue'`.
+    out[`./${relPosix}`] = content;
+    // And file:// keys for callers that use absolute URLs.
+    try {
+      out[pathToFileURL(p).href] = content;
+    } catch {
+      // ignore
+    }
+  };
+
+  walk(root);
+  return out;
+}
+
+function loadTemplatesFromDirs(dirs: string[], basePath: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const d of dirs) {
+    Object.assign(out, loadTemplatesFromDir(d, basePath));
+  }
+  return out;
 }
 
 function inferFormatFromOutputPath(outputPath: string): OutputFormat | null {
@@ -381,9 +457,9 @@ async function main(): Promise<void> {
   const diagramMode = options._explicit.has('diagramMode')
     ? options.diagramMode
     : (fmOptions.diagramMode ?? defaultDiagramMode);
-  const templatesDir = options._explicit.has('templatesDir')
-    ? options.templatesDir
-    : (fmOptions.templatesDir ?? options.templatesDir);
+  const templates = options._explicit.has('templatesDir')
+    ? { ...(fmOptions.templates ?? {}), ...loadTemplatesFromDirs(options.templatesDir, path.dirname(inputPath)) }
+    : (fmOptions.templates ?? {});
   const liveRuntime = options._explicit.has('liveRuntime')
     ? options.liveRuntime
     : (fmOptions.liveRuntime ?? options.liveRuntime);
@@ -454,7 +530,7 @@ async function main(): Promise<void> {
       liveRuntime,
       liveRuntimeBaseUrl,
       cdn: fmOptions.cdn,
-      templatesDir,
+      templates,
       image,
       skipFrontMatter: true,
     });
