@@ -672,7 +672,7 @@ export class Md2xRenderer extends BaseRenderer {
   protected async ensureVueRuntime(cdn?: { vue?: string; vueSfcLoader?: string }): Promise<void> {
     if (this.vueReady) return this.vueReady;
 
-    const vueSrc = cdn?.vue || 'https://unpkg.com/vue@3/dist/vue.global.js';
+    const vueSrc = cdn?.vue || 'https://cdn.jsdelivr.net/npm/vue/dist/vue.global.js';
     const sfcLoaderSrc = cdn?.vueSfcLoader || 'https://cdn.jsdelivr.net/npm/vue3-sfc-loader/dist/vue3-sfc-loader.js';
 
     this.vueReady = (async () => {
