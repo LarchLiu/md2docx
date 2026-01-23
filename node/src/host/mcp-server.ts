@@ -3,7 +3,7 @@
  * Exposes markdown conversion tools via Model Context Protocol
  */
 
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import {
   CallToolRequestSchema,
@@ -13,6 +13,7 @@ import {
 import { z } from 'zod';
 import * as fs from 'fs';
 import * as path from 'path';
+import packageJson from '../../package.json' with { type: 'json' };
 import { convert, formatToExtension, isImageFormat } from './index.js';
 import type { OutputFormat, DiagramMode } from './types.js';
 import { registry } from './themes-data.js';
@@ -42,13 +43,13 @@ const ListThemesSchema = z.object({});
 // ============================================================================
 
 export class MarkdownMcpServer {
-  private server: Server;
+  private mcpServer: McpServer;
 
   constructor() {
-    this.server = new Server(
+    this.mcpServer = new McpServer(
       {
         name: 'md2x-mcp-server',
-        version: '1.0.0',
+        version: packageJson.version,
       },
       {
         capabilities: {
@@ -62,7 +63,7 @@ export class MarkdownMcpServer {
 
   private setupHandlers(): void {
     // List available tools
-    this.server.setRequestHandler(ListToolsRequestSchema, async () => {
+    this.mcpServer.server.setRequestHandler(ListToolsRequestSchema, async () => {
       const tools: Tool[] = [
         {
           name: 'convert_markdown',
@@ -137,7 +138,7 @@ export class MarkdownMcpServer {
     });
 
     // Handle tool calls
-    this.server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    this.mcpServer.server.setRequestHandler(CallToolRequestSchema, async (request) => {
       const { name, arguments: args } = request.params;
 
       try {
@@ -289,7 +290,7 @@ export class MarkdownMcpServer {
 
   async run(): Promise<void> {
     const transport = new StdioServerTransport();
-    await this.server.connect(transport);
+    await this.mcpServer.connect(transport);
 
     // Keep the process running
     process.stdin.resume();
