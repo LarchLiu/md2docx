@@ -44,6 +44,7 @@ interface NodeOptions {
   help: boolean;
   version: boolean;
   listThemes: boolean;
+  mcp: boolean;
   diagramMode: DiagramMode;
   /** Extra directories to search for md2x templates referenced by ` ```md2x ` blocks (repeatable). */
   templatesDir: string[];
@@ -172,6 +173,7 @@ md2x - Convert Markdown to PDF, DOCX, HTML, or Image
 Usage:
   npx md2x <input.md> [output] [options]
   md2x <input.md> [output] [options]
+  md2x --mcp                              (Start MCP server mode)
 
 Arguments:
   input.md          Input markdown file (required)
@@ -183,6 +185,7 @@ Options:
   -t, --theme       Theme name (default: "default")
   -h, --help        Show this help message
   -v, --version     Show version number
+  --mcp             Start MCP (Model Context Protocol) server mode
   --diagram-mode    img | live | none (default: img for DOCX; live for HTML/Image)
   --live-runtime    inline | cdn (HTML + diagramMode=live; default: cdn)
   --live-runtime-url  Custom runtime URL when --live-runtime cdn
@@ -199,6 +202,7 @@ Examples:
   npx md2x README.md -f html -o output.html
   npx md2x README.md -f png -o output.png
   npx md2x --list-themes
+  npx md2x --mcp
 
 Available Themes:
   ${formatThemeList(themes)}
@@ -243,6 +247,7 @@ function parseArgs(args: string[]): NodeOptions {
     help: false,
     version: false,
     listThemes: false,
+    mcp: false,
     diagramMode: 'live',
     templatesDir: [],
     liveRuntime: undefined,
@@ -270,6 +275,8 @@ function parseArgs(args: string[]): NodeOptions {
       options.version = true;
     } else if (arg === '--list-themes') {
       options.listThemes = true;
+    } else if (arg === '--mcp') {
+      options.mcp = true;
     } else if (arg === '--diagram-mode') {
       i++;
       if (i < args.length) {
@@ -395,6 +402,13 @@ function parseArgs(args: string[]): NodeOptions {
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   const options = parseArgs(args);
+
+  // Handle MCP mode first (before other flags)
+  if (options.mcp) {
+    const { startMcpServer } = await import('./mcp-server.js');
+    await startMcpServer();
+    return;
+  }
 
   // Handle help/version/list-themes
   if (options.help) {

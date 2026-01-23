@@ -7,7 +7,7 @@ Markdown → PDF/DOCX/HTML/Image converter.
 ## Features
 
 - 📦 **Supported formats**: `pdf`, `docx`, `html`, `png`, `jpg/jpeg`, `webp`
-- 🔌 **MCP (Model Context Protocol)**: run `mcp/` server to expose Markdown conversion as MCP tools
+- 🔌 **MCP (Model Context Protocol)**: built-in MCP server
 - 🧠 **Skills**: includes an agent skill at `skills/md2x/SKILL.md` for repeatable conversions/workflows
 - 🧩 **Custom templates**: render `md2x` blocks with **Vue SFC** (`.vue`) and **Svelte 5** (`.svelte`) templates (plus plain HTML)
 
@@ -284,34 +284,66 @@ or
 npx add-skill larchliu/md2x
 ```
 
-## MCP server (Model Context Protocol)
+## MCP Server (Model Context Protocol)
 
-This repo includes an Express-based MCP server that exposes `md2x` as MCP tools over HTTP, so MCP clients can convert Markdown and download the generated HTML/PDF/DOCX from `/resources`.
+The md2x CLI includes a built-in MCP server that exposes markdown conversion as MCP tools via stdio transport.
 
-Run:
+### Starting the MCP Server
+
+```bash
+npx md2x --mcp
+```
+
+Or if installed globally:
+
+```bash
+md2x --mcp
+```
+
+### Available Tools
+
+- **`convert_markdown`**: Convert markdown files to PDF, DOCX, HTML, or Image formats
+  - Takes a `markdownFilePath` parameter
+  - Saves output to the same directory as the source file (or custom `outputPath`)
+  - Returns the file path to the converted document
+
+- **`list_themes`**: List all available themes with their categories and featured status
+
+### Integration with Claude Desktop
+
+Add to your Claude Desktop configuration (`~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```json
+{
+  "mcpServers": {
+    "md2x": {
+      "command": "node",
+      "args": ["/path/to/markdown-viewer-extension/node/dist/md2x.js", "--mcp"]
+    }
+  }
+}
+```
+
+### Testing
+
+```bash
+node --test test/mcp-server.test.mjs
+```
+
+See [MCP-SERVER.md](MCP-SERVER.md) for detailed documentation.
+
+---
+
+## HTTP-based MCP Server (Separate Package)
+
+There's also a separate Express-based MCP server in the `mcp/` directory that exposes `md2x` as MCP tools over HTTP:
 
 ```bash
 pnpm -C mcp install
 pnpm -C mcp start
 ```
 
-Endpoints:
-
-- Streamable HTTP (recommended): `POST/GET/DELETE /mcp`
-- Legacy HTTP+SSE: `GET /sse` and `POST /messages?sessionId=...`
-- Resources (static files): `GET /resources/*`
-
-Tools:
-
-- `markdown_to_html` / `markdown_to_pdf` / `markdown_to_docx` - Convert Markdown to HTML/PDF/DOCX
-- `markdown_to_image` - Convert Markdown to an image (`png`/`jpg`/`jpeg`/`webp`), may return multiple parts for very tall pages
-- `markdown_convert` - Auto convert via `md2x.convert()` (front matter supported; includes image formats)
-- `resources_upload` - Upload a file to `/resources` (e.g. images referenced by Markdown)
-
-Notes:
-
-- The conversion tools return an MCP `resource_link` pointing to the generated file URL.
-- Config: `PORT` (default `3000`) and `MD2X_BASE_URL` (used to build the public `/resources` URL). See `mcp/README.md`.
+See `mcp/README.md` for details.
 
 ## Puppeteer / Chrome install
 
