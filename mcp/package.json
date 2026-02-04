@@ -1,6 +1,6 @@
 {
   "name": "md2x-mcp",
-  "version": "0.7.5",
+  "version": "0.7.7",
   "private": true,
   "type": "module",
   "description": "MCP (Model Context Protocol) server for md2x, implemented with Express.",
@@ -14,7 +14,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.2",
     "express": "^5.2.1",
-    "md2x": "~0.7.5",
+    "md2x": "~0.7.7",
     "zod": "^4.3.5"
   },
   "devDependencies": {

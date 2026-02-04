@@ -15,8 +15,8 @@ importers:
         specifier: ^5.2.1
         version: 5.2.1
       md2x:
-        specifier: ~0.7.5
-        version: 0.7.5
+        specifier: ~0.7.7
+        version: 0.7.7(hono@4.11.4)
       zod:
         specifier: ^4.3.5
         version: 4.3.5
@@ -46,6 +46,16 @@ packages:
 
   '@modelcontextprotocol/sdk@1.25.2':
     resolution: {integrity: sha512-LZFeo4F9M5qOhC/Uc1aQSrBHxMrvxett+9KLHt7OhcExtoiRN9DKgbZffMP/nxjutWDQpfMDfP3nkHI4X9ijww==}
+    engines: {node: '>=18'}
+    peerDependencies:
+      '@cfworker/json-schema': ^4.1.1
+      zod: ^3.25 || ^4.0
+    peerDependenciesMeta:
+      '@cfworker/json-schema':
+        optional: true
+
+  '@modelcontextprotocol/sdk@1.25.3':
+    resolution: {integrity: sha512-vsAMBMERybvYgKbg/l4L1rhS7VXV1c0CtyJg72vwxONVX0l4ZfKVAnZEWTQixJGTzKnELjQ59e4NbdFDALRiAQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@cfworker/json-schema': ^4.1.1
@@ -507,8 +517,8 @@ packages:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
 
-  md2x@0.7.5:
-    resolution: {integrity: sha512-cUF1PEWwd6gf7T7E80ejGnLEMY0P1Z3cLCE4fZqkR7vwOsVUOBocJiDKaPQTBUfjvjUu3Qw/3IzAPjGqFG1qjg==}
+  md2x@0.7.7:
+    resolution: {integrity: sha512-V9V9W9BCuMczRLZ/mtTnuWp0XEYoEYpHFEo99pc5YR9HPFBiH8zm9de0EeY3fAKhgNDsSXBxCcBHejToO78MjA==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -810,6 +820,9 @@ packages:
   zod@4.3.5:
     resolution: {integrity: sha512-k7Nwx6vuWx1IJ9Bjuf4Zt1PEllcwe7cls3VNzm4CQ1/hgtFUK2bRNG3rvnpPUhFjmqJKAKtjV576KnUkHocg/g==}
 
+  zod@4.3.6:
+    resolution: {integrity: sha512-rftlrkhHZOcjDwkGlnUtZZkvaPHCsDATp4pGpuOOMDaTdDDXF91wuVDJoWoPsKX/3YPQ5fHuF3STjcYyKr+Qhg==}
+
 snapshots:
 
   '@babel/code-frame@7.28.6':
@@ -842,6 +855,28 @@ snapshots:
       raw-body: 3.0.2
       zod: 4.3.5
       zod-to-json-schema: 3.25.1(zod@4.3.5)
+    transitivePeerDependencies:
+      - hono
+      - supports-color
+
+  '@modelcontextprotocol/sdk@1.25.3(hono@4.11.4)(zod@4.3.6)':
+    dependencies:
+      '@hono/node-server': 1.19.9(hono@4.11.4)
+      ajv: 8.17.1
+      ajv-formats: 3.0.1(ajv@8.17.1)
+      content-type: 1.0.5
+      cors: 2.8.5
+      cross-spawn: 7.0.6
+      eventsource: 3.0.7
+      eventsource-parser: 3.0.6
+      express: 5.2.1
+      express-rate-limit: 7.5.1(express@5.2.1)
+      jose: 6.1.3
+      json-schema-typed: 8.0.2
+      pkce-challenge: 5.0.1
+      raw-body: 3.0.2
+      zod: 4.3.6
+      zod-to-json-schema: 3.25.1(zod@4.3.6)
     transitivePeerDependencies:
       - hono
       - supports-color
@@ -1315,14 +1350,18 @@ snapshots:
 
   math-intrinsics@1.1.0: {}
 
-  md2x@0.7.5:
+  md2x@0.7.7(hono@4.11.4):
     dependencies:
+      '@modelcontextprotocol/sdk': 1.25.3(hono@4.11.4)(zod@4.3.6)
       js-yaml: 4.1.1
       puppeteer: 24.35.0
+      zod: 4.3.6
     transitivePeerDependencies:
+      - '@cfworker/json-schema'
       - bare-abort-controller
       - bare-buffer
       - bufferutil
+      - hono
       - react-native-b4a
       - supports-color
       - typescript
@@ -1677,6 +1716,12 @@ snapshots:
     dependencies:
       zod: 4.3.5
 
+  zod-to-json-schema@3.25.1(zod@4.3.6):
+    dependencies:
+      zod: 4.3.6
+
   zod@3.25.76: {}
 
   zod@4.3.5: {}
+
+  zod@4.3.6: {}
