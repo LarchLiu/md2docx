@@ -18,6 +18,7 @@ import {
   renderFrontmatterAsRaw,
   type HeadingInfo,
 } from '../markdown-processor';
+import { escapePipesInTableCodeSpans } from '../../utils/markdown-table-code';
 
 import {
   MarkdownDocument,
@@ -365,7 +366,7 @@ async function applyIncrementalUpdate(
  * Render a single block's content to HTML
  */
 async function renderBlockContent(content: string, processor: Processor): Promise<string> {
-  const file = await processor.process(content);
+  const file = await processor.process(escapePipesInTableCodeSpans(content));
   let html = String(file);
   html = processTablesForWordCompatibility(html);
   html = sanitizeRenderedHtml(html);

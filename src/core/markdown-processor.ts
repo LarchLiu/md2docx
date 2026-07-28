@@ -19,6 +19,7 @@ import rehypeImageUri from '../plugins/rehype-image-uri';
 import { registerRemarkPlugins } from '../plugins/index';
 import { createPlaceholderElement } from '../plugins/plugin-content-utils';
 import { generateContentHash, hashCode } from '../utils/hash';
+import { escapePipesInTableCodeSpans } from '../utils/markdown-table-code';
 import {
   splitMarkdownIntoBlocksWithLines as splitBlocks,
   splitMarkdownIntoBlocks as splitBlocksSimple,
@@ -667,7 +668,7 @@ async function processBlockToHtml(
     return cached;
   }
 
-  const file = await processor.process(block);
+  const file = await processor.process(escapePipesInTableCodeSpans(block));
   let html = String(file);
   html = processTablesForWordCompatibility(html);
   html = sanitizeRenderedHtml(html);
@@ -725,7 +726,7 @@ export async function processMarkdownToHtml(
   const { renderer, taskManager, translate = (key) => key, frontmatterDisplay = 'hide' } = options;
 
   // Pre-process markdown
-  const normalizedMarkdown = normalizeMathBlocks(markdown);
+  const normalizedMarkdown = escapePipesInTableCodeSpans(normalizeMathBlocks(markdown));
   
   // Split into blocks with line info
   const blocks = splitMarkdownIntoBlocksWithLines(normalizedMarkdown);
