@@ -30,6 +30,7 @@ import { visit } from 'unist-util-visit';
 import { loadThemeForDOCX } from './theme-to-docx';
 import type { FrontmatterDisplay } from '../ui/popup/settings-tab';
 import themeManager from '../utils/theme-manager';
+import { escapePipesInTableCodeSpans } from '../utils/markdown-table-code';
 import { getPluginForNode, convertNodeToDOCX } from '../plugins/index';
 import type { PluginRenderer } from '../types/plugin';
 import type { DocumentService } from '../types/platform';
@@ -203,7 +204,7 @@ class DocxExporter {
   ): Promise<DOCXExportResult> {
     try {
       // In browser platforms, use the current page URL as base.
-      // In Node/CLI, callers should set base via setBaseUrl() before export.
+      // In Node/CLI, the caller configures DocumentService before export.
       if (typeof window !== 'undefined' && window.location?.href) {
         this.setBaseUrl(window.location.href);
       }
@@ -442,7 +443,7 @@ class DocxExporter {
       .use(remarkGemoji)
       .use(remarkSuperSub);
 
-    const ast = processor.parse(cleanMarkdown);
+    const ast = processor.parse(escapePipesInTableCodeSpans(cleanMarkdown));
     const transformed = processor.runSync(ast);
 
     this.linkDefinitions = new Map();

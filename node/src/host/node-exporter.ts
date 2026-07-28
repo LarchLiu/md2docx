@@ -419,7 +419,7 @@ export class NodeDocxExporter {
       // Dynamic import to reduce bundle size - docx is only loaded when needed
       const { default: DocxExporter } = await import('../../../src/exporters/docx-exporter');
       const exporter = new DocxExporter(pluginRenderer);
-      exporter.setBaseUrl?.(pathToFileURL(virtualDocPath).href);
+      platform.document?.setDocumentPath(virtualDocPath);
 
       const result = await exporter.exportToDocx(markdown, '__md2x__.docx', null);
       if (!result.success) {

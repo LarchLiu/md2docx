@@ -122,7 +122,7 @@ export function createNodePlatform(options: CreateNodePlatformOptions): CreatedN
   let captured: Buffer | null = null;
 
   const documentService = new NodeDocumentService();
-  // Default document path; caller should override via DocxExporter.setBaseUrl()
+  // Default document path; callers should override it before exporting a file.
   documentService.setDocumentPath(path.join(process.cwd(), '__md2x__.md'));
 
   const platform: PlatformAPI = {

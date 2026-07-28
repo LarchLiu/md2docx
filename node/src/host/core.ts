@@ -11,6 +11,7 @@ import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import remarkSuperSub from '../../../src/plugins/remark-super-sub';
+import { escapePipesInTableCodeSpans } from '../../../src/utils/markdown-table-code';
 import remarkRehype from 'remark-rehype';
 import rehypeKatex from 'rehype-katex';
 import rehypeHighlight from 'rehype-highlight';
@@ -223,7 +224,7 @@ export async function markdownToHtml(markdown: string): Promise<string> {
     .use(rehypeBlockImages)
     .use(rehypeStringify, { allowDangerousHtml: true });
 
-  const file = await processor.process(markdown);
+  const file = await processor.process(escapePipesInTableCodeSpans(markdown));
   return String(file);
 }
 

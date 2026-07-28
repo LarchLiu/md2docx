@@ -124,4 +124,46 @@ diagramMode: none
     assert.ok(html.includes('live-runtime-core.js'));
     assert.ok(!html.includes('const workerSource ='));
   });
+
+  test('preserves unescaped pipes inside inline code in GFM tables', async () => {
+    const markdown = [
+      '| Current condition | Duration | Longest interval |',
+      '|---|---:|---:|',
+      '| `|I| > 2 A` | 104.0 ms | 5.6 ms |',
+    ].join('\n');
+
+    const html = await api.markdownToHtml(markdown);
+    assert.strictEqual((html.match(/<td/g) || []).length, 3);
+    assert.ok(html.includes('<code>|I| > 2 A</code>'));
+    assert.ok(html.includes('104.0 ms'));
+    assert.ok(html.includes('5.6 ms'));
+  });
+
+  test('does not double-escape table pipes or alter pipes outside tables', async () => {
+    const markdown = [
+      'Inline code outside a table: `a|b`.',
+      '',
+      '| Expression | Value |',
+      '|---|---|',
+      '| `a\\|b` | 1 |',
+      '',
+      '```text',
+      '| `fenced|code` |',
+      '|---|',
+      '```',
+    ].join('\n');
+
+    const html = await api.markdownToHtml(markdown);
+    assert.ok(html.includes('<code>a|b</code>'));
+    assert.ok(!html.includes('a\\|b'));
+    assert.ok(html.includes('fenced|code'));
+  });
+
+  test('preserves code pipes in a single-column table', async () => {
+    const markdown = ['| Expression |', '|---|', '| `a|b` |'].join('\n');
+    const html = await api.markdownToHtml(markdown);
+
+    assert.strictEqual((html.match(/<td/g) || []).length, 1);
+    assert.ok(html.includes('<code>a|b</code>'));
+  });
 });
